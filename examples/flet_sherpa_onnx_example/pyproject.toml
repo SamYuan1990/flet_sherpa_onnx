@@ -1,0 +1,19 @@
+[project]
+name = "flet-sherpa-onnx-example"
+version = "1.0.0"
+description = "flet sherpa onnx example"
+readme = "README.md"
+requires-python = ">=3.12"
+package-mode = false
+dependencies = [
+  "flet-sherpa-onnx @ file:///Users/yuanyi/OpenSource/flet_sherpa_onnx/",
+  "flet",
+]
+
+[tool.flet]
+# org name in reverse domain name notation, e.g. "com.mycompany".
+# Combined with project.name to build bundle ID for iOS and Android apps
+org = "com.mycompany"
+
+[tool.flet.app]
+path = "src"

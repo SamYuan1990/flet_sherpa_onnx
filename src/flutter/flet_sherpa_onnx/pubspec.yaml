@@ -1,0 +1,32 @@
+name: flet_sherpa_onnx
+description: Flet FletSherpaOnnx control
+repository: https://github.com/SamYuan1990/flet-sherpa-onnx/src/flutter/flet_sherpa_onnx
+version: 0.1.0
+homepage: https://github.com/SamYuan1990/flet-sherpa-onnx
+publish_to: none
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+  flutter: ">=1.17.0"
+
+dependencies:
+  sherpa_onnx: ^1.12.13
+  flutter:
+    sdk: flutter
+
+  collection: ^1.16.0
+  flet:
+    git:
+      url: git@github.com:flet-dev/flet.git
+      path: packages/flet
+      ref: main
+
+dependency_overrides:
+  flet:
+    path: /Users/yuanyi/OpenSource/flet/client/../packages/flet
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  

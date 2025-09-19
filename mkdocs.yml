@@ -1,0 +1,7 @@
+site_name: FletSherpaOnnx
+
+theme:
+  name: "material"
+
+plugins:
+  - mkdocstrings
