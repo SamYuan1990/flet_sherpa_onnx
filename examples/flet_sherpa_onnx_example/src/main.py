@@ -1,14 +1,29 @@
 import flet as ft
 import logging
+from logging.handlers import RotatingFileHandler
+import os
 import flet_sherpa_onnx as fso
 logging.basicConfig(level=logging.DEBUG)
+
+app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
+log_file_path = os.path.join(app_data_path, "app.log")
+file_handler = RotatingFileHandler(
+    log_file_path, maxBytes=1024 * 1024, backupCount=2, encoding="utf-8"  # 1MB
+)
+file_handler.setLevel(logging.DEBUG)
+os.environ["FLET_SECRET_KEY"] = "DEFAULT_SECRET_KEY_CHANGE_IN_PRODUCTION"
+# 创建formatter
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
+# 将formatter添加到handler
+file_handler.setFormatter(formatter)
+logging.getLogger().addHandler(file_handler)
 
 def main(page: ft.Page):
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.appbar = ft.AppBar(title=ft.Text("flet sherpa onnx"), center_title=True)
     flet_sherpa_onnx = fso.FletSherpaOnnx()
     page._services.append(flet_sherpa_onnx)
-    app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
     
     async def test(e: ft.Event[ft.Button]):
         logging.info("test")
