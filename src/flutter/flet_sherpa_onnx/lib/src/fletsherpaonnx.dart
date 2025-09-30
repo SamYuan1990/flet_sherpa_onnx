@@ -8,9 +8,9 @@ class FletSherpaOnnxService extends FletService {
 
   // 类内共享变量
   late sherpa_onnx.OfflineRecognizer recognizer;
-  sherpa_onnx.OfflineWhisperModelConfig? whisper;
-  sherpa_onnx.OfflineModelConfig? modelConfig;
-  sherpa_onnx.OfflineRecognizerConfig? config;
+  late sherpa_onnx.OfflineWhisperModelConfig whisper;
+  late sherpa_onnx.OfflineModelConfig modelConfig;
+  late sherpa_onnx.OfflineRecognizerConfig config;
 
   @override
   void init() {
