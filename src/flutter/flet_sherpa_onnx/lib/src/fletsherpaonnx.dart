@@ -58,6 +58,10 @@ class FletSherpaOnnxService extends FletService {
 
   // 创建识别器的独立方法
   String _createRecognizer(dynamic args) {
+    if (!_isInitialized) {
+      sherpa_onnx.initBindings();
+      _isInitialized = true;
+    }
     whisper = sherpa_onnx.OfflineWhisperModelConfig(
       encoder: args["encoder"],
       decoder: args["decoder"],
