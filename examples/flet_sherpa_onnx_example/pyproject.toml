@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 package-mode = false
 dependencies = [
-  "flet-sherpa-onnx @ file:///Users/yuanyi/OpenSource/flet_sherpa_onnx/",
+  "flet-sherpa-onnx @ file:///../..",
   "flet",
 ]
 
