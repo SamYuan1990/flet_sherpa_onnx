@@ -1,5 +1,5 @@
 import 'dart:async';
-
+import 'package:flutter/foundation.dart';
 import 'package:flet/flet.dart';
 
 class FletSherpaOnnxService extends FletService {
