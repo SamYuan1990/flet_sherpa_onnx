@@ -1,7 +1,7 @@
 import flet as ft
 import logging
 import flet_sherpa_onnx as fso
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 def main(page: ft.Page):
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
