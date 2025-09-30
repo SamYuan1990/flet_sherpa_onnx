@@ -9,12 +9,32 @@ class FletSherpaOnnx(ft.Service):
     """
     FletSherpaOnnx Control description.
     """
-    print("we are here")
 
     async def test(self, timeout: Optional[float] = 10) -> Optional[str]:
-        print("method testing")
         return await self._invoke_method(
             method_name="test_method",
             arguments={},
+            timeout=timeout,
+        )
+
+    async def CreateRecognizer(self, encoder,decoder,tokens, timeout: Optional[float] = 10) -> Optional[str]:
+        #"output_path": output_path,
+        #"configuration": configuration
+        return await self._invoke_method(
+            method_name="CreateRecognizer",
+            arguments={
+                "encoder": encoder,
+                "decoder": decoder,
+                "tokens": tokens
+            },
+            timeout=timeout,
+        )
+
+    async def STT(self, inputWav, timeout: Optional[float] = 10) -> Optional[str]:
+        return await self._invoke_method(
+            method_name="STT",
+            arguments={
+                "inputWav": inputWav
+            },
             timeout=timeout,
         )
