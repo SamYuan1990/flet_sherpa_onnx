@@ -6,6 +6,7 @@ import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa_onnx;
 class FletSherpaOnnxService extends FletService {
   FletSherpaOnnxService({required super.control});
 
+  bool _isInitialized = false;
   // 类内共享变量
   late sherpa_onnx.OfflineRecognizer recognizer;
   late sherpa_onnx.OfflineWhisperModelConfig whisper;
@@ -16,6 +17,8 @@ class FletSherpaOnnxService extends FletService {
   void init() {
     super.init();
     debugPrint("FletSherpaOnnxService(${control.id}).init: ${control.properties}");
+    sherpa_onnx.initBindings();
+    _isInitialized = true;
     control.addInvokeMethodListener(_invokeMethod);
   }
 
