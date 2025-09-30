@@ -15,5 +15,5 @@ dependencies = [
 # Combined with project.name to build bundle ID for iOS and Android apps
 org = "com.mycompany"
 
-[tool.flet.app]
+[tool.flet.app.path]
 path = "src"
