@@ -38,6 +38,9 @@ Build your app, please ref
 
 ## Usage
 ```python
+    import soundfile as sf
+    import flet_sherpa_onnx as fso
+
     flet_sherpa_onnx = fso.FletSherpaOnnx()
     page._services.append(flet_sherpa_onnx)
     await flet_sherpa_onnx.CreateRecognizer(
@@ -48,6 +51,12 @@ Build your app, please ref
             # whisper tokens with sherpa_onnx
             tokens=app_data_path+"/base-tokens.txt"
         )
+
+    # You need to use soundfile to ensure the format 
+    audio, sample_rate = sf.read(input_file, dtype="float32", always_2d=True)
+    audio = audio[:, 0]  # 取第一个声道
+    sf.write(output_file, audio, target_sr, subtype='PCM_16', format='WAV')
+
     await flet_sherpa_onnx.STT(
             inputWav=app_data_path+"/test-audio-file.wav"
         )
