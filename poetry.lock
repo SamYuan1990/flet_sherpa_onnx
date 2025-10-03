@@ -2,15 +2,15 @@
 
 [[package]]
 name = "anyio"
-version = "4.10.0"
+version = "4.11.0"
 description = "High-level concurrency and networking framework on top of asyncio or Trio"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 markers = "platform_system != \"Pyodide\""
 files = [
-    {file = "anyio-4.10.0-py3-none-any.whl", hash = "sha256:60e474ac86736bbfd6f210f7a61218939c318f43f9972497381f1c5e930ed3d1"},
-    {file = "anyio-4.10.0.tar.gz", hash = "sha256:3f3fae35c96039744587aa5b8371e7e8e603c0702999535961dd336026973ba6"},
+    {file = "anyio-4.11.0-py3-none-any.whl", hash = "sha256:0287e96f4d26d4149305414d4e3bc32f0dcd0862365a4bddea19d7a1ec38c4fc"},
+    {file = "anyio-4.11.0.tar.gz", hash = "sha256:82a8d0b81e318cc5ce71a5f1f8b5c4e63619620b63141ef8c995fa0db95a57c4"},
 ]
 
 [package.dependencies]
@@ -19,7 +19,7 @@ sniffio = ">=1.1"
 typing_extensions = {version = ">=4.5", markers = "python_version < \"3.13\""}
 
 [package.extras]
-trio = ["trio (>=0.26.1)"]
+trio = ["trio (>=0.31.0)"]
 
 [[package]]
 name = "certifi"
@@ -36,13 +36,13 @@ files = [
 
 [[package]]
 name = "flet"
-version = "0.70.0.dev5623"
+version = "0.70.0.dev6196"
 description = "Flet for Python - easily build interactive multi-platform apps in Python"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "flet-0.70.0.dev5623-py3-none-any.whl", hash = "sha256:369190214aa353a1c51e3acd84381b143139160fd96b6253dc2ecef80b867a72"},
+    {file = "flet-0.70.0.dev6196-py3-none-any.whl", hash = "sha256:3d40d8d1f69be2eece10b30b808409a28a1d74e8d6d4fbc49fec30b30024aa56"},
 ]
 
 [package.dependencies]
@@ -52,10 +52,10 @@ oauthlib = {version = ">=3.2.2", markers = "platform_system != \"Pyodide\""}
 repath = ">=0.9.0"
 
 [package.extras]
-all = ["flet-cli", "flet-desktop", "flet-desktop-light (==0.70.0.dev5623) ; platform_system == \"Linux\"", "flet-web"]
-cli = ["flet-cli", "flet-cli (==0.70.0.dev5623)"]
-desktop = ["flet-desktop", "flet-desktop (==0.70.0.dev5623) ; platform_system == \"Darwin\" or platform_system == \"Windows\"", "flet-desktop-light (==0.70.0.dev5623) ; platform_system == \"Linux\""]
-web = ["flet-web", "flet-web (==0.70.0.dev5623)"]
+all = ["flet-cli", "flet-desktop", "flet-web"]
+cli = ["flet-cli", "flet-cli"]
+desktop = ["flet-desktop", "flet-desktop ; platform_system == \"Darwin\" or platform_system == \"Windows\""]
+web = ["flet-web", "flet-web"]
 
 [[package]]
 name = "h11"
