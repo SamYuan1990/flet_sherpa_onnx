@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flet/flet.dart';
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa_onnx;
@@ -22,8 +23,8 @@ class FletSherpaOnnxService extends FletService {
   
   // 音频流处理相关
   late sherpa_onnx.OfflineStream _stream;
-  final int _sampleRate = 16000;
-  final List<double> _audioBuffer = []; // 存储录音数据的缓冲区
+  static const int _sampleRate = 16000;
+  final List<int> _audioBuffer = []; // 改为存储原始字节数据
 
   @override
   void init() {
@@ -148,13 +149,8 @@ class FletSherpaOnnxService extends FletService {
 
       audioStream.listen(
         (data) {
-          // 将音频数据转换为float32格式并添加到缓冲区
-          final samplesFloat32 = _convertBytesToFloat32(Uint8List.fromList(data));
-          _audioBuffer.addAll(samplesFloat32);
-          
-          // 实时将音频数据送入识别器（可选，用于实时识别）
-          // 注意：对于离线识别器，我们通常在录音结束后一次性处理
-          // _stream.acceptWaveform(samples: samplesFloat32, sampleRate: _sampleRate);
+          // 直接存储原始字节数据到缓冲区
+          _audioBuffer.addAll(data);
         },
         onDone: () {
           debugPrint("Audio stream completed");
@@ -178,8 +174,11 @@ class FletSherpaOnnxService extends FletService {
       
       // 确保所有音频数据都已处理
       if (_audioBuffer.isNotEmpty) {
+        // 将字节数据转换为 Float32List
+        final float32Samples = _convertBytesToFloat32(Uint8List.fromList(_audioBuffer));
+        
         // 使用缓冲区中的所有数据进行最终识别
-        _stream.acceptWaveform(samples: _audioBuffer, sampleRate: _sampleRate);
+        _stream.acceptWaveform(samples: float32Samples, sampleRate: _sampleRate);
         recognizer.decode(_stream);
         final result = recognizer.getResult(_stream);
         
@@ -232,8 +231,8 @@ class FletSherpaOnnxService extends FletService {
     control.triggerEvent("recording_state_change", stateMap[recordState]);
   }
 
-  // 将字节数据转换为float32格式（从文件一复制）
-  Float32List _convertBytesToFloat32(Uint8List bytes, [endian = Endian.little]) {
+  // 将字节数据转换为float32格式
+  Float32List _convertBytesToFloat32(Uint8List bytes, [Endian endian = Endian.little]) {
     final values = Float32List(bytes.length ~/ 2);
 
     final data = ByteData.view(bytes.buffer);
