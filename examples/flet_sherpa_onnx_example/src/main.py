@@ -4,7 +4,7 @@ from logging.handlers import RotatingFileHandler
 import os
 import flet_sherpa_onnx as fso
 import asyncio
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
 log_file_path = os.path.join(app_data_path, "app.log")
@@ -23,8 +23,8 @@ logging.getLogger().addHandler(file_handler)
 def main(page: ft.Page):
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.appbar = ft.AppBar(title=ft.Text("flet sherpa onnx"), center_title=True)
-    flet_sherpa_onnx = fso.FletSherpaOnnx()
-    page._services.append(flet_sherpa_onnx)
+    fso_service = fso.FletSherpaOnnx()
+    page._services.append(fso_service)
     
     # 创建对话框
     dlg = ft.AlertDialog(
@@ -47,15 +47,16 @@ def main(page: ft.Page):
             
             # 初始化识别器（如果尚未初始化）
             try:
-                value = await flet_sherpa_onnx.CreateRecognizer(
+                value = await fso_service.CreateRecognizer(
                     encoder=app_data_path+"/base-encoder.onnx",
                     decoder=app_data_path+"/base-decoder.onnx",
                     tokens=app_data_path+"/base-tokens.txt"
                 )
                 logging.info(f"识别器创建结果: {value}")
-                
                 # 开始录音
-                await flet_sherpa_onnx.StartRecording()
+                logging.info(type(fso_service))
+                logging.info(hasattr(fso_service, 'StartRecording'))
+                await fso_service.StartRecording()
                 logging.info("录音已开始")
             except Exception as ex:
                 logging.error(f"开始录音时出错: {ex}")
@@ -76,7 +77,9 @@ def main(page: ft.Page):
             
             try:
                 # 停止录音并获取结果
-                result = await flet_sherpa_onnx.StopRecording()
+                logging.info(type(fso_service))
+                logging.info(hasattr(fso_service, 'StopRecording'))
+                result = await fso_service.StopRecording()
                 logging.info(f"识别结果: {result}")
                 
                 # 显示结果
@@ -96,7 +99,7 @@ def main(page: ft.Page):
 
     async def test(e: ft.Event[ft.Button]):
         logging.info("test")
-        value = await flet_sherpa_onnx.test()
+        value = await fso_service.test()
         logging.info(value)
         logging.info("test complete")
 
