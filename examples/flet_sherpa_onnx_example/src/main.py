@@ -25,6 +25,12 @@ def main(page: ft.Page):
     flet_sherpa_onnx = fso.FletSherpaOnnx()
     page._services.append(flet_sherpa_onnx)
     
+    # 创建对话框
+    dlg = ft.AlertDialog(
+        title=ft.Text("语音识别结果"),
+        on_dismiss=lambda e: print("Dialog dismissed!")
+    )
+    
     async def test(e: ft.Event[ft.Button]):
         logging.info("test")
         value = await flet_sherpa_onnx.test()
@@ -41,16 +47,21 @@ def main(page: ft.Page):
         logging.info(value)
         logging.info("CreateRecognizer complete")
         logging.info(app_data_path+"/test-audio-file.wav")
+        logging.info("STT start")
         value = await flet_sherpa_onnx.STT(
             inputWav=app_data_path+"/test-audio-file.wav"
         )
         logging.info(value)
-        logging.info("CreateRecognizer complete")
-
+        logging.info("STT complete")
+        
+        # 显示弹出窗口
+        dlg.content = ft.Text(f"识别结果: {value}")
+        page.dialog = dlg
+        dlg.open = True
+        page.update()
 
     page.add(
         ft.Button(content="WAV Encoder Support", on_click=test),
     )
 
 ft.run(main)
-

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flet/flet.dart';
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa_onnx;
+import 'wavfileprocessor.dart';
 
 class FletSherpaOnnxService extends FletService {
   FletSherpaOnnxService({required super.control});
@@ -88,7 +89,8 @@ class FletSherpaOnnxService extends FletService {
       throw Exception("Recognizer not created. Call CreateRecognizer first.");
     }
 
-    final waveData = sherpa_onnx.readWave(args["inputWav"]);
+    final wavData = await WavFileProcessor.loadWavFile(args["inputWav"]);
+    // final waveData = sherpa_onnx.readWave(;
     final stream = recognizer.createStream();
     
     try {
