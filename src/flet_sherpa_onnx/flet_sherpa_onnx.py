@@ -30,11 +30,12 @@ class FletSherpaOnnx(ft.Service):
             timeout=timeout,
         )
 
-    async def STT(self, inputWav, timeout: Optional[float] = 10) -> Optional[str]:
+    async def StartRecording(self, timeout: Optional[float] = 10) -> Optional[str]:
         return await self._invoke_method(
-            method_name="STT",
-            arguments={
-                "inputWav": inputWav
-            },
+            method_name="start_recording",
+            arguments={},
             timeout=timeout,
         )
+
+    async def StopRecording(self, timeout: Optional[float] = 10) -> Optional[str]:
+        return await self._invoke_method("stop_recording", timeout=timeout)
