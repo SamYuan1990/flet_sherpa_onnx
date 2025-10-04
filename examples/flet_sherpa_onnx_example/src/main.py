@@ -102,14 +102,14 @@ def main(page: ft.Page):
 
     # 创建按钮和状态文本
     start_btn = ft.Button(
-        text="开始录音",
-        icon=ft.icons.MIC,
+        content="开始录音",
+        icon=ft.Icons.MIC,
         on_click=start_recording
     )
     
     stop_btn = ft.Button(
-        text="停止录音",
-        icon=ft.icons.STOP,
+        content="停止录音",
+        icon=ft.Icons.STOP,
         on_click=stop_recording,
         disabled=True
     )
