@@ -13,6 +13,7 @@ class FletSherpaOnnxService extends FletService {
   // 语音识别相关变量
   late sherpa_onnx.OfflineRecognizer recognizer;
   late sherpa_onnx.OfflineWhisperModelConfig whisper;
+  late sherpa_onnx.OfflineSenseVoiceModelConfig senseVoice; // 添加缺失的变量声明
   late sherpa_onnx.OfflineModelConfig modelConfig;
   late sherpa_onnx.OfflineRecognizerConfig config;
 
@@ -52,8 +53,19 @@ class FletSherpaOnnxService extends FletService {
     // 清理资源
     _recordSub?.cancel();
     _audioRecorder.dispose();
-    recognizer.free();
-    _stream.free();
+    
+    // 只在对象已创建的情况下释放资源
+    try {
+      recognizer.free();
+    } catch (e) {
+      debugPrint("Error freeing recognizer: $e");
+    }
+    
+    try {
+      _stream.free();
+    } catch (e) {
+      debugPrint("Error freeing stream: $e");
+    }
     
     super.dispose();
   }
@@ -102,9 +114,9 @@ class FletSherpaOnnxService extends FletService {
 
     // new logic for Recognizer creation loop
     // input parameter as Recognizer value in string of Whisper or senseVoice
-    String recognizer = args["Recognizer"];
+    String recognizerType = args["Recognizer"];
     
-    if (recognizer == "Whisper") {
+    if (recognizerType == "Whisper") {
       whisper = sherpa_onnx.OfflineWhisperModelConfig(
         encoder: args["encoder"],
         decoder: args["decoder"],
@@ -119,7 +131,7 @@ class FletSherpaOnnxService extends FletService {
       );
     } 
     // logic for senseVoice
-    else if (recognizer == "senseVoice") {
+    else if (recognizerType == "senseVoice") {
       senseVoice = sherpa_onnx.OfflineSenseVoiceModelConfig(
         model: args["model"], 
         language: args["language"] ?? '',
@@ -133,7 +145,7 @@ class FletSherpaOnnxService extends FletService {
         numThreads: 1,
       );
     } else {
-      throw Exception("Unsupported Recognizer type: $recognizer. Supported types: 'Whisper' or 'senseVoice'");
+      throw Exception("Unsupported Recognizer type: $recognizerType. Supported types: 'Whisper' or 'senseVoice'");
     }
     // end of recognizer condition loop
 
