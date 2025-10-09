@@ -6,6 +6,11 @@ FletSherpaOnnx control for Flet
 
 ## A flet componment which supports STT
 For now, supports whisper.
+todo:
+- [ ] senseVoice
+- [ ] vad
+- [ ] vad with non streaming asr
+- [ ] PR to https://github.com/k2-fsa/sherpa-onnx#projects-using-sherpa-onnx
 
 ## Installation
 
