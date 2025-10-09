@@ -49,7 +49,7 @@ def main(page: ft.Page):
             try:
                 if current_recognizer == "Whisper":
                     value = await fso_service.CreateRecognizer(
-                        Recognizer="Whisper",
+                        recognizer="Whisper",
                         encoder=app_data_path+"/base-encoder.onnx",
                         # https://hf-mirror.com/csukuangfj/sherpa-onnx-whisper-base/resolve/main/base-encoder.onnx?download=true
                         decoder=app_data_path+"/base-decoder.onnx",
@@ -59,7 +59,7 @@ def main(page: ft.Page):
                     )
                 elif current_recognizer == "senseVoice":
                     value = await fso_service.CreateRecognizer(
-                        Recognizer="senseVoice",
+                        recognizer="senseVoice",
                         model=app_data_path+"/model.int8.onnx",
                         # https://hf-mirror.com/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09/resolve/main/model.int8.onnx?download=true
                         tokens=app_data_path+"/tokens.txt"
