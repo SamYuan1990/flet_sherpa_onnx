@@ -97,7 +97,7 @@ def main(page: ft.Page):
                 page.dialog = dlg
                 dlg.open = True
                 
-                status_text.value = "就绪"
+                status_text.value = result
                 start_btn.disabled = False
                 page.update()
                 

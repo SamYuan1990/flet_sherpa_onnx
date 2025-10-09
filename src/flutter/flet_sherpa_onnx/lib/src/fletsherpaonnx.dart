@@ -135,7 +135,7 @@ class FletSherpaOnnxService extends FletService {
       senseVoice = sherpa_onnx.OfflineSenseVoiceModelConfig(
         model: args["model"], 
         language: args["language"] ?? '',
-        useInverseTextNormalization: args["useInverseTextNormalization"] ?? 'false'
+        useInverseTextNormalization: args["useInverseTextNormalization"] ?? false
       );
     
       modelConfig = sherpa_onnx.OfflineModelConfig(
