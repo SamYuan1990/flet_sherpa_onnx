@@ -114,7 +114,7 @@ class FletSherpaOnnxService extends FletService {
 
     // new logic for Recognizer creation loop
     // input parameter as Recognizer value in string of Whisper or senseVoice
-    String recognizerType = args["Recognizer"];
+    String recognizerType = args["recognizer"];
     
     if (recognizerType == "Whisper") {
       whisper = sherpa_onnx.OfflineWhisperModelConfig(

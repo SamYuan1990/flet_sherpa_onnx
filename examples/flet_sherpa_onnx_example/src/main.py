@@ -111,7 +111,7 @@ def main(page: ft.Page):
         logging.info("测试Whisper识别器")
         try:
             value = await fso_service.CreateRecognizer(
-                Recognizer="Whisper",
+                recognizer="Whisper",
                 encoder=app_data_path+"/base-encoder.onnx",
                 decoder=app_data_path+"/base-decoder.onnx",
                 tokens=app_data_path+"/base-tokens.txt"
@@ -132,7 +132,7 @@ def main(page: ft.Page):
         logging.info("测试senseVoice识别器")
         try:
             value = await fso_service.CreateRecognizer(
-                Recognizer="senseVoice",
+                recognizer="senseVoice",
                 model=app_data_path+"/model.int8.onnx",
                 tokens=app_data_path+"/tokens.txt"
             )
