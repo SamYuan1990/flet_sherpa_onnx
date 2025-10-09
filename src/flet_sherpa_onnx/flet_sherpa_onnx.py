@@ -70,3 +70,21 @@ class FletSherpaOnnx(ft.Service):
             method_name="StopRecording",
             timeout=timeout
         )
+
+    async def is_recording(self, timeout: float | None = 10.0) -> bool:
+        """检查是否正在录制。
+        
+        Args:
+            timeout: 超时时间（秒），None表示无超时
+            
+        Returns:
+            bool: 是否正在录制
+            
+        Raises:
+            TimeoutError: 操作超时
+            Other exceptions from _invoke_method
+        """
+        return await self._invoke_method(
+            method_name="IsRecording",
+            timeout=timeout
+        )
