@@ -1,9 +1,9 @@
 import flet as ft
 import logging
-from typing import Optional
+from typing import Optional, Literal
 
 __all__ = ["FletSherpaOnnx"]
-# this will mapping my python code to dart
+
 @ft.control("FletSherpaOnnx")
 class FletSherpaOnnx(ft.Service):
     """
@@ -17,14 +17,43 @@ class FletSherpaOnnx(ft.Service):
             timeout=timeout,
         )
 
-    async def CreateRecognizer(self, encoder,decoder,tokens, timeout: Optional[float] = 10) -> Optional[str]:
-        #"output_path": output_path,
-        #"configuration": configuration
+    async def CreateRecognizer(
+        self,
+        recognizer: Literal["senseVoice", "Whisper"] = "Whisper",
+        encoder: Optional[str] = None,
+        decoder: Optional[str] = None,
+        tokens: Optional[str] = None,
+        model: Optional[str] = None,
+        timeout: Optional[float] = 10
+    ) -> Optional[str]:
+        """
+        Create a speech recognizer.
+
+        Args:
+            recognizer: Type of recognizer, either "senseVoice" or "Whisper". Defaults to "Whisper".
+            encoder: Path to encoder model file. Optional.
+            decoder: Path to decoder model file. Optional.
+            tokens: Path to tokens file. Optional.
+            model: Path to model file. Optional.
+            timeout: Method timeout in seconds. Defaults to 10.
+
+        Returns:
+            The result string or None if failed.
+
+        Raises:
+            ValueError: If recognizer is not one of the allowed values.
+        """
+        # Validate recognizer parameter
+        if recognizer not in ["senseVoice", "Whisper"]:
+            raise ValueError(f"recognizer must be 'senseVoice' or 'Whisper', got '{recognizer}'")
+
         return await self._invoke_method(
             method_name="CreateRecognizer",
             arguments={
+                "recognizer": recognizer,
                 "encoder": encoder,
                 "decoder": decoder,
+                "model": model,
                 "tokens": tokens
             },
             timeout=timeout,
@@ -39,5 +68,5 @@ class FletSherpaOnnx(ft.Service):
     async def StopRecording(self, timeout: Optional[float] = 10) -> Optional[str]:
         return await self._invoke_method(
             method_name="StopRecording",
-             timeout=timeout
+            timeout=timeout
         )

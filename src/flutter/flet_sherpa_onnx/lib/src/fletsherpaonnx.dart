@@ -99,20 +99,44 @@ class FletSherpaOnnxService extends FletService {
       sherpa_onnx.initBindings();
       _isInitialized = true;
     }
+
+    // new logic for Recognizer creation loop
+    // input parameter as Recognizer value in string of Whisper or senseVoice
+    String recognizer = args["Recognizer"];
     
-    whisper = sherpa_onnx.OfflineWhisperModelConfig(
-      encoder: args["encoder"],
-      decoder: args["decoder"],
-    );
+    if (recognizer == "Whisper") {
+      whisper = sherpa_onnx.OfflineWhisperModelConfig(
+        encoder: args["encoder"],
+        decoder: args["decoder"],
+      );
     
-    modelConfig = sherpa_onnx.OfflineModelConfig(
-      whisper: whisper,
-      tokens: args["tokens"],
-      modelType: 'whisper',
-      debug: false,
-      numThreads: 1,
-    );
+      modelConfig = sherpa_onnx.OfflineModelConfig(
+        whisper: whisper,
+        tokens: args["tokens"],
+        modelType: 'whisper',
+        debug: false,
+        numThreads: 1,
+      );
+    } 
+    // logic for senseVoice
+    else if (recognizer == "senseVoice") {
+      senseVoice = sherpa_onnx.OfflineSenseVoiceModelConfig(
+        model: args["model"], 
+        language: args["language"] ?? '',
+        useInverseTextNormalization: args["useInverseTextNormalization"] ?? 'false'
+      );
     
+      modelConfig = sherpa_onnx.OfflineModelConfig(
+        senseVoice: senseVoice,
+        tokens: args["tokens"],
+        debug: false,
+        numThreads: 1,
+      );
+    } else {
+      throw Exception("Unsupported Recognizer type: $recognizer. Supported types: 'Whisper' or 'senseVoice'");
+    }
+    // end of recognizer condition loop
+
     config = sherpa_onnx.OfflineRecognizerConfig(model: modelConfig);
     recognizer = sherpa_onnx.OfflineRecognizer(config);
     _stream = recognizer.createStream();

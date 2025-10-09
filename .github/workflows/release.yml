@@ -5,6 +5,8 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - 'main'
   # 每7天自动构建一次
   schedule:
     - cron: '0 0 */7 * *'
