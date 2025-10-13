@@ -27,7 +27,6 @@ class FletSherpaOnnxService extends FletService {
   RecordState _recordState = RecordState.stop;
   
   // 音频流处理相关
-  late sherpa_onnx.OfflineStream _stream;
   static const int _sampleRate = 16000;
   final List<int> _audioBuffer = []; // 改为存储原始字节数据
 
