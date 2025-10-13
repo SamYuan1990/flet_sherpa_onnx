@@ -16,6 +16,10 @@ class FletSherpaOnnxService extends FletService {
   late sherpa_onnx.OfflineSenseVoiceModelConfig senseVoice; // 添加缺失的变量声明
   late sherpa_onnx.OfflineModelConfig modelConfig;
   late sherpa_onnx.OfflineRecognizerConfig config;
+  
+  // VAD相关变量
+  sherpa_onnx.VoiceActivityDetector? vad;
+  late sherpa_onnx.OfflineStream _stream;
 
   // 录音相关变量
   late final AudioRecorder _audioRecorder;
@@ -65,6 +69,13 @@ class FletSherpaOnnxService extends FletService {
       _stream.free();
     } catch (e) {
       debugPrint("Error freeing stream: $e");
+    }
+
+    // if enable vad
+    try {
+      vad?.free();
+    } catch (e) {
+      debugPrint("Error freeing VAD: $e");
     }
     
     super.dispose();
@@ -147,13 +158,34 @@ class FletSherpaOnnxService extends FletService {
     } else {
       throw Exception("Unsupported Recognizer type: $recognizerType. Supported types: 'Whisper' or 'senseVoice'");
     }
-    // end of recognizer condition loop
+
+    // VAD配置逻辑 - 根据是否传入VAD模型路径来判断是否启用VAD
+    final sileroVadModel = args["silero-vad"];
+    final useVad = sileroVadModel != null && sileroVadModel.isNotEmpty;
+
+    if (useVad) {
+    final sileroVadConfig = sherpa_onnx.SileroVadModelConfig(
+        model: sileroVadModel,
+        minSilenceDuration: 0.25,
+        minSpeechDuration: 0.5,
+        maxSpeechDuration: 5.0,
+    );
+    final vadConfig = sherpa_onnx.VadModelConfig(
+      sileroVad: sileroVadConfig,
+      numThreads: 1,
+      debug: false,
+    );
+      vad = sherpa_onnx.VoiceActivityDetector(
+        config: vadConfig, 
+        bufferSizeInSeconds: 60
+      );
+    }
 
     config = sherpa_onnx.OfflineRecognizerConfig(model: modelConfig);
     recognizer = sherpa_onnx.OfflineRecognizer(config);
     _stream = recognizer.createStream();
     
-    return "Recognizer created successfully";
+    return "Recognizer created successfully${useVad ? ' with VAD' : ''}";
   }
 
   // 开始录音
@@ -243,6 +275,9 @@ class FletSherpaOnnxService extends FletService {
     // 重置流
     _stream.free();
     _stream = recognizer.createStream();
+    
+    // 重置VAD
+    vad?.reset();
   }
 
   // 检查是否正在录音

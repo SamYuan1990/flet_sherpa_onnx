@@ -5,11 +5,9 @@
 FletSherpaOnnx control for Flet
 
 ## A flet componment which supports STT
-For now, supports whisper.
+For now, supports whisper and senseVoice.
 todo:
-- [ ] vad
 - [ ] vad with non streaming asr
-- [ ] PR to https://github.com/k2-fsa/sherpa-onnx#projects-using-sherpa-onnx
 
 ## Installation
 
@@ -48,6 +46,7 @@ from logging.handlers import RotatingFileHandler
 import os
 import flet_sherpa_onnx as fso
 import asyncio
+
 logging.basicConfig(level=logging.INFO)
 
 app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
@@ -59,7 +58,6 @@ file_handler.setLevel(logging.DEBUG)
 os.environ["FLET_SECRET_KEY"] = "DEFAULT_SECRET_KEY_CHANGE_IN_PRODUCTION"
 # 创建formatter
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-
 # 将formatter添加到handler
 file_handler.setFormatter(formatter)
 logging.getLogger().addHandler(file_handler)
@@ -78,99 +76,191 @@ def main(page: ft.Page):
     
     # 录音状态标志
     is_recording = False
-    
-    async def start_recording(e):
-        nonlocal is_recording
-        if not is_recording:
-            logging.info("开始录音")
-            is_recording = True
-            start_btn.disabled = True
-            stop_btn.disabled = False
-            status_text.value = "录音中..."
-            page.update()
+    current_recognizer = "Whisper"  # 默认使用Whisper
+
+    async def is_recording_status(timeout: float | None = 5.0) -> bool:
+        """检查当前是否正在录音。
+        
+        Args:
+            timeout: 超时时间（秒）
             
-            # 初始化识别器（如果尚未初始化）
-            try:
+        Returns:
+            bool: 是否正在录音
+        """
+        try:
+            return await fso_service.IsRecording(timeout=timeout)
+        except Exception as ex:
+            logging.error(f"检查录音状态时出错: {ex}")
+            return False
+
+    async def toggle_recording(e):
+        """切换录音状态：开始录音或停止录音"""
+        nonlocal is_recording
+        
+        if not is_recording:
+            # 开始录音
+            await start_recording_logic()
+        else:
+            # 停止录音
+            await stop_recording_logic()
+
+    async def start_recording_logic():
+        """开始录音的逻辑"""
+        nonlocal is_recording
+        
+        logging.info(f"开始录音，使用识别器: {current_recognizer}")
+        is_recording = True
+        record_btn.content = ft.Text("停止录音")
+        record_btn.icon = ft.Icons.STOP
+        record_btn.style = ft.ButtonStyle(color=ft.Colors.RED)
+        status_text.value = f"录音中... ({current_recognizer})"
+        recognizer_dropdown.disabled = True  # 录音时禁用识别器切换
+        page.update()
+        
+        # 初始化识别器
+        try:
+            if current_recognizer == "Whisper":
                 value = await fso_service.CreateRecognizer(
-                    # whisper encoder
+                    recognizer="Whisper",
                     encoder=app_data_path+"/base-encoder.onnx",
-                    # whisper decoder
                     decoder=app_data_path+"/base-decoder.onnx",
-                    # whisper tokens
                     tokens=app_data_path+"/base-tokens.txt"
                 )
-                logging.info(f"识别器创建结果: {value}")
-                # 开始录音
-                logging.info(type(fso_service))
-                logging.info(hasattr(fso_service, 'StartRecording'))
-                await fso_service.StartRecording()
-                logging.info("录音已开始")
-            except Exception as ex:
-                logging.error(f"开始录音时出错: {ex}")
-                status_text.value = f"错误: {ex}"
-                is_recording = False
-                start_btn.disabled = False
-                stop_btn.disabled = True
-                page.update()
+            elif current_recognizer == "senseVoice":
+                value = await fso_service.CreateRecognizer(
+                    recognizer="senseVoice",
+                    model=app_data_path+"/model.int8.onnx",
+                    tokens=app_data_path+"/tokens.txt"
+                )
+            
+            logging.info(f"识别器创建结果: {value}")
+            # 开始录音
+            await fso_service.StartRecording()
+            logging.info("录音已开始")
+            
+        except Exception as ex:
+            logging.error(f"开始录音时出错: {ex}")
+            status_text.value = f"错误: {ex}"
+            await reset_recording_state()
+            page.update()
 
-    async def stop_recording(e):
+    async def stop_recording_logic():
+        """停止录音的逻辑"""
         nonlocal is_recording
-        if is_recording:
-            logging.info("停止录音")
-            is_recording = False
-            stop_btn.disabled = True
-            status_text.value = "处理中..."
+        
+        logging.info("停止录音")
+        status_text.value = "处理中..."
+        page.update()
+        
+        try:
+            # 停止录音并获取结果
+            result = await fso_service.StopRecording()
+            logging.info(f"识别结果: {result}")
+            
+            # 显示结果
+            dlg.content = ft.Text(f"识别结果 ({current_recognizer}): {result}")
+            page.dialog = dlg
+            dlg.open = True
+            
+            status_text.value = result
+            await reset_recording_state()
             page.update()
             
-            try:
-                # 停止录音并获取结果
-                logging.info(type(fso_service))
-                logging.info(hasattr(fso_service, 'StopRecording'))
-                result = await fso_service.StopRecording()
-                logging.info(f"识别结果: {result}")
-                
-                # 显示结果
-                dlg.content = ft.Text(f"识别结果: {result}")
-                page.dialog = dlg
-                dlg.open = True
-                
-                status_text.value = "就绪"
-                start_btn.disabled = False
-                page.update()
-                
-            except Exception as ex:
-                logging.error(f"停止录音时出错: {ex}")
-                status_text.value = f"错误: {ex}"
-                start_btn.disabled = False
-                page.update()
+        except Exception as ex:
+            logging.error(f"停止录音时出错: {ex}")
+            status_text.value = f"错误: {ex}"
+            await reset_recording_state()
+            page.update()
 
-    async def test(e: ft.Event[ft.Button]):
-        logging.info("test")
-        value = await fso_service.test()
-        logging.info(value)
-        logging.info("test complete")
+    async def reset_recording_state():
+        """重置录音状态"""
+        nonlocal is_recording
+        is_recording = False
+        record_btn.content = ft.Text("开始录音")
+        record_btn.icon = ft.Icons.MIC
+        record_btn.style = ft.ButtonStyle(color=ft.Colors.BLUE)
+        recognizer_dropdown.disabled = False  # 重新启用识别器切换
 
-    # 创建按钮和状态文本
-    start_btn = ft.Button(
-        content="开始录音",
+    async def test_whisper(e):
+        logging.info("测试Whisper识别器")
+        try:
+            value = await fso_service.CreateRecognizer(
+                recognizer="Whisper",
+                encoder=app_data_path+"/base-encoder.onnx",
+                decoder=app_data_path+"/base-decoder.onnx",
+                tokens=app_data_path+"/base-tokens.txt"
+            )
+            logging.info(f"Whisper识别器创建结果: {value}")
+            dlg.content = ft.Text(f"Whisper测试成功: {value}")
+            page.dialog = dlg
+            dlg.open = True
+            page.update()
+        except Exception as ex:
+            logging.error(f"测试Whisper时出错: {ex}")
+            dlg.content = ft.Text(f"Whisper测试失败: {ex}")
+            page.dialog = dlg
+            dlg.open = True
+            page.update()
+
+    async def test_sense_voice(e):
+        logging.info("测试senseVoice识别器")
+        try:
+            value = await fso_service.CreateRecognizer(
+                recognizer="senseVoice",
+                model=app_data_path+"/model.int8.onnx",
+                tokens=app_data_path+"/tokens.txt"
+            )
+            logging.info(f"senseVoice识别器创建结果: {value}")
+            dlg.content = ft.Text(f"senseVoice测试成功: {value}")
+            page.dialog = dlg
+            dlg.open = True
+            page.update()
+        except Exception as ex:
+            logging.error(f"测试senseVoice时出错: {ex}")
+            dlg.content = ft.Text(f"senseVoice测试失败: {ex}")
+            page.dialog = dlg
+            dlg.open = True
+            page.update()
+
+    async def switch_recognizer(e):
+        nonlocal current_recognizer
+        if e.control.value:
+            current_recognizer = e.control.value
+            status_text.value = f"已切换到: {current_recognizer}"
+            logging.info(f"切换到识别器: {current_recognizer}")
+            page.update()
+
+    # 创建录音切换按钮
+    record_btn = ft.Button(
+        content=ft.Text("开始录音"),
         icon=ft.Icons.MIC,
-        on_click=start_recording
-    )
-    
-    stop_btn = ft.Button(
-        content="停止录音",
-        icon=ft.Icons.STOP,
-        on_click=stop_recording,
-        disabled=True
+        on_click=toggle_recording,
+        style=ft.ButtonStyle(color=ft.Colors.BLUE)
     )
     
     status_text = ft.Text("就绪", size=16)
+    
+    # 识别器选择下拉菜单
+    recognizer_dropdown = ft.Dropdown(
+        label="选择识别器",
+        options=[
+            ft.dropdown.Option("Whisper"),
+            ft.dropdown.Option("senseVoice"),
+        ],
+        value="Whisper",
+        on_change=switch_recognizer,
+        width=200
+    )
 
     page.add(
         ft.Column([
-            ft.Row([start_btn, stop_btn], alignment=ft.MainAxisAlignment.CENTER),
+            ft.Row([recognizer_dropdown], alignment=ft.MainAxisAlignment.CENTER),
+            ft.Row([record_btn], alignment=ft.MainAxisAlignment.CENTER),
             status_text,
-            ft.Button(content="WAV Encoder Support", on_click=test),
+            ft.Row([
+                ft.Button(content="测试Whisper", on_click=test_whisper),
+                ft.Button(content="测试senseVoice", on_click=test_sense_voice),
+            ], alignment=ft.MainAxisAlignment.CENTER),
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
     )
 

@@ -35,6 +35,7 @@ def main(page: ft.Page):
     # 录音状态标志
     is_recording = False
     current_recognizer = "Whisper"  # 默认使用Whisper
+    use_vad = False  # 是否使用VAD
 
     async def is_recording_status(timeout: float | None = 5.0) -> bool:
         """检查当前是否正在录音。
@@ -66,30 +67,52 @@ def main(page: ft.Page):
         """开始录音的逻辑"""
         nonlocal is_recording
         
-        logging.info(f"开始录音，使用识别器: {current_recognizer}")
+        logging.info(f"开始录音，使用识别器: {current_recognizer}, VAD: {use_vad}")
         is_recording = True
         record_btn.content = ft.Text("停止录音")
         record_btn.icon = ft.Icons.STOP
         record_btn.style = ft.ButtonStyle(color=ft.Colors.RED)
-        status_text.value = f"录音中... ({current_recognizer})"
+        status_text.value = f"录音中... ({current_recognizer}{' + VAD' if use_vad else ''})"
         recognizer_dropdown.disabled = True  # 录音时禁用识别器切换
+        vad_checkbox.disabled = True  # 录音时禁用VAD切换
         page.update()
         
         # 初始化识别器
         try:
             if current_recognizer == "Whisper":
-                value = await fso_service.CreateRecognizer(
-                    recognizer="Whisper",
-                    encoder=app_data_path+"/base-encoder.onnx",
-                    decoder=app_data_path+"/base-decoder.onnx",
-                    tokens=app_data_path+"/base-tokens.txt"
-                )
+                if use_vad:
+                    # 使用VAD+Whisper
+                    value = await fso_service.CreateRecognizer(
+                        recognizer="Whisper",
+                        encoder=app_data_path+"/base-encoder.onnx",
+                        decoder=app_data_path+"/base-decoder.onnx",
+                        tokens=app_data_path+"/base-tokens.txt",
+                        silerovad=app_data_path+"/silero_vad.onnx"  # VAD模型文件
+                    )
+                else:
+                    # 普通Whisper
+                    value = await fso_service.CreateRecognizer(
+                        recognizer="Whisper",
+                        encoder=app_data_path+"/base-encoder.onnx",
+                        decoder=app_data_path+"/base-decoder.onnx",
+                        tokens=app_data_path+"/base-tokens.txt"
+                    )
             elif current_recognizer == "senseVoice":
-                value = await fso_service.CreateRecognizer(
-                    recognizer="senseVoice",
-                    model=app_data_path+"/model.int8.onnx",
-                    tokens=app_data_path+"/tokens.txt"
-                )
+                if use_vad:
+                    # 使用VAD+senseVoice
+                    value = await fso_service.CreateRecognizer(
+                        recognizer="senseVoice",
+                        model=app_data_path+"/model.int8.onnx",
+                        tokens=app_data_path+"/tokens.txt",
+                        silerovad=app_data_path+"/silero_vad.onnx"  # VAD模型文件
+                    )
+                else:
+                    # 普通senseVoice
+                    value = await fso_service.CreateRecognizer(
+                        recognizer="senseVoice",
+                        model=app_data_path+"/model.int8.onnx",
+                        tokens=app_data_path+"/tokens.txt"
+                    )
             
             logging.info(f"识别器创建结果: {value}")
             # 开始录音
@@ -109,14 +132,13 @@ def main(page: ft.Page):
         logging.info("停止录音")
         status_text.value = "处理中..."
         page.update()
-        
         try:
             # 停止录音并获取结果
             result = await fso_service.StopRecording()
             logging.info(f"识别结果: {result}")
             
             # 显示结果
-            dlg.content = ft.Text(f"识别结果 ({current_recognizer}): {result}")
+            dlg.content = ft.Text(f"识别结果 ({current_recognizer}{' + VAD' if use_vad else ''}): {result}")
             page.dialog = dlg
             dlg.open = True
             
@@ -138,6 +160,7 @@ def main(page: ft.Page):
         record_btn.icon = ft.Icons.MIC
         record_btn.style = ft.ButtonStyle(color=ft.Colors.BLUE)
         recognizer_dropdown.disabled = False  # 重新启用识别器切换
+        vad_checkbox.disabled = False  # 重新启用VAD切换
 
     async def test_whisper(e):
         logging.info("测试Whisper识别器")
@@ -180,6 +203,49 @@ def main(page: ft.Page):
             dlg.open = True
             page.update()
 
+    async def test_whisper_vad(e):
+        logging.info("测试VAD+Whisper识别器")
+        try:
+            value = await fso_service.CreateRecognizer(
+                recognizer="Whisper",
+                encoder=app_data_path+"/base-encoder.onnx",
+                decoder=app_data_path+"/base-decoder.onnx",
+                tokens=app_data_path+"/base-tokens.txt",
+                silerovad=app_data_path+"/silero_vad.onnx"  # VAD模型文件
+            )
+            logging.info(f"VAD+Whisper识别器创建结果: {value}")
+            dlg.content = ft.Text(f"VAD+Whisper测试成功: {value}")
+            page.dialog = dlg
+            dlg.open = True
+            page.update()
+        except Exception as ex:
+            logging.error(f"测试VAD+Whisper时出错: {ex}")
+            dlg.content = ft.Text(f"VAD+Whisper测试失败: {ex}")
+            page.dialog = dlg
+            dlg.open = True
+            page.update()
+
+    async def test_sense_voice_vad(e):
+        logging.info("测试VAD+senseVoice识别器")
+        try:
+            value = await fso_service.CreateRecognizer(
+                recognizer="senseVoice",
+                model=app_data_path+"/model.int8.onnx",
+                tokens=app_data_path+"/tokens.txt",
+                silerovad=app_data_path+"/silero_vad.onnx"  # VAD模型文件
+            )
+            logging.info(f"VAD+senseVoice识别器创建结果: {value}")
+            dlg.content = ft.Text(f"VAD+senseVoice测试成功: {value}")
+            page.dialog = dlg
+            dlg.open = True
+            page.update()
+        except Exception as ex:
+            logging.error(f"测试VAD+senseVoice时出错: {ex}")
+            dlg.content = ft.Text(f"VAD+senseVoice测试失败: {ex}")
+            page.dialog = dlg
+            dlg.open = True
+            page.update()
+
     async def switch_recognizer(e):
         nonlocal current_recognizer
         if e.control.value:
@@ -187,6 +253,13 @@ def main(page: ft.Page):
             status_text.value = f"已切换到: {current_recognizer}"
             logging.info(f"切换到识别器: {current_recognizer}")
             page.update()
+
+    def toggle_vad(e):
+        nonlocal use_vad
+        use_vad = e.control.value
+        status_text.value = f"VAD: {'启用' if use_vad else '禁用'}"
+        logging.info(f"VAD状态: {use_vad}")
+        page.update()
 
     # 创建录音切换按钮
     record_btn = ft.Button(
@@ -209,15 +282,27 @@ def main(page: ft.Page):
         on_change=switch_recognizer,
         width=200
     )
+    
+    # VAD复选框
+    vad_checkbox = ft.Checkbox(
+        label="启用VAD (Voice Activity Detection)",
+        value=False,
+        on_change=toggle_vad
+    )
 
     page.add(
         ft.Column([
             ft.Row([recognizer_dropdown], alignment=ft.MainAxisAlignment.CENTER),
+            ft.Row([vad_checkbox], alignment=ft.MainAxisAlignment.CENTER),
             ft.Row([record_btn], alignment=ft.MainAxisAlignment.CENTER),
             status_text,
             ft.Row([
                 ft.Button(content="测试Whisper", on_click=test_whisper),
                 ft.Button(content="测试senseVoice", on_click=test_sense_voice),
+            ], alignment=ft.MainAxisAlignment.CENTER),
+            ft.Row([
+                ft.Button(content="测试VAD+Whisper", on_click=test_whisper_vad),
+                ft.Button(content="测试VAD+senseVoice", on_click=test_sense_voice_vad),
             ], alignment=ft.MainAxisAlignment.CENTER),
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
     )

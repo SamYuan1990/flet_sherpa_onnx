@@ -20,6 +20,7 @@ class FletSherpaOnnx(ft.Service):
     async def CreateRecognizer(
         self,
         recognizer: Literal["senseVoice", "Whisper"] = "Whisper",
+        silerovad: Optional[str] = None,
         encoder: Optional[str] = None,
         decoder: Optional[str] = None,
         tokens: Optional[str] = None,
@@ -31,6 +32,7 @@ class FletSherpaOnnx(ft.Service):
 
         Args:
             recognizer: Type of recognizer, either "senseVoice" or "Whisper". Defaults to "Whisper".
+            silerovad: vad model path if you want to enable vad.
             encoder: Path to encoder model file. Optional.
             decoder: Path to decoder model file. Optional.
             tokens: Path to tokens file. Optional.
@@ -51,6 +53,7 @@ class FletSherpaOnnx(ft.Service):
             method_name="CreateRecognizer",
             arguments={
                 "recognizer": recognizer,
+                "silero-vad": silerovad,
                 "encoder": encoder,
                 "decoder": decoder,
                 "model": model,
