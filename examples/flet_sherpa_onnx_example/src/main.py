@@ -5,6 +5,7 @@ import os
 import flet_sherpa_onnx as fso
 import threading
 import time
+import asyncio
 
 logging.basicConfig(level=logging.INFO)
 
@@ -44,7 +45,7 @@ def main(page: ft.Page):
     vad_stop_event = threading.Event()
     vad_data_text = ft.Text("VAD数据将显示在这里", size=14, selectable=True)
 
-    def is_recording_status(timeout: float | None = 5.0) -> bool:
+    async def is_recording_status(timeout: float | None = 5.0) -> bool:
         """检查当前是否正在录音。
         
         Args:
@@ -54,25 +55,23 @@ def main(page: ft.Page):
             bool: 是否正在录音
         """
         try:
-            # 注意：这里可能需要根据实际的fso_service实现调整
-            # 如果IsRecording是异步的，可能需要特殊处理
-            return fso_service.IsRecording(timeout=timeout)
+            return await fso_service.IsRecording(timeout=timeout)
         except Exception as ex:
             logging.error(f"检查录音状态时出错: {ex}")
             return False
 
-    def toggle_recording(e):
+    async def toggle_recording(e):
         """切换录音状态：开始录音或停止录音"""
         nonlocal is_recording
         
         if not is_recording:
             # 开始录音
-            start_recording_logic()
+            await start_recording_logic()
         else:
             # 停止录音
-            stop_recording_logic()
+            await stop_recording_logic()
 
-    def start_recording_logic():
+    async def start_recording_logic():
         """开始录音的逻辑"""
         nonlocal is_recording
         
@@ -91,7 +90,7 @@ def main(page: ft.Page):
             if current_recognizer == "Whisper":
                 if use_vad:
                     # 使用VAD+Whisper
-                    value = fso_service.CreateRecognizer(
+                    value = await fso_service.CreateRecognizer(
                         recognizer="Whisper",
                         encoder=app_data_path+"/base-encoder.onnx",
                         decoder=app_data_path+"/base-decoder.onnx",
@@ -100,7 +99,7 @@ def main(page: ft.Page):
                     )
                 else:
                     # 普通Whisper
-                    value = fso_service.CreateRecognizer(
+                    value = await fso_service.CreateRecognizer(
                         recognizer="Whisper",
                         encoder=app_data_path+"/base-encoder.onnx",
                         decoder=app_data_path+"/base-decoder.onnx",
@@ -109,7 +108,7 @@ def main(page: ft.Page):
             elif current_recognizer == "senseVoice":
                 if use_vad:
                     # 使用VAD+senseVoice
-                    value = fso_service.CreateRecognizer(
+                    value = await fso_service.CreateRecognizer(
                         recognizer="senseVoice",
                         model=app_data_path+"/model.int8.onnx",
                         tokens=app_data_path+"/tokens.txt",
@@ -117,7 +116,7 @@ def main(page: ft.Page):
                     )
                 else:
                     # 普通senseVoice
-                    value = fso_service.CreateRecognizer(
+                    value = await fso_service.CreateRecognizer(
                         recognizer="senseVoice",
                         model=app_data_path+"/model.int8.onnx",
                         tokens=app_data_path+"/tokens.txt"
@@ -125,16 +124,16 @@ def main(page: ft.Page):
             
             logging.info(f"识别器创建结果: {value}")
             # 开始录音
-            fso_service.StartRecording()
+            await fso_service.StartRecording()
             logging.info("录音已开始")
             
         except Exception as ex:
             logging.error(f"开始录音时出错: {ex}")
             status_text.value = f"错误: {ex}"
-            reset_recording_state()
+            await reset_recording_state()
             page.update()
 
-    def stop_recording_logic():
+    async def stop_recording_logic():
         """停止录音的逻辑"""
         nonlocal is_recording
         
@@ -143,7 +142,7 @@ def main(page: ft.Page):
         page.update()
         try:
             # 停止录音并获取结果
-            result = fso_service.StopRecording()
+            result = await fso_service.StopRecording()
             logging.info(f"识别结果: {result}")
             
             # 显示结果
@@ -152,16 +151,16 @@ def main(page: ft.Page):
             dlg.open = True
             
             status_text.value = result
-            reset_recording_state()
+            await reset_recording_state()
             page.update()
             
         except Exception as ex:
             logging.error(f"停止录音时出错: {ex}")
             status_text.value = f"错误: {ex}"
-            reset_recording_state()
+            await reset_recording_state()
             page.update()
 
-    def reset_recording_state():
+    async def reset_recording_state():
         """重置录音状态"""
         nonlocal is_recording
         is_recording = False
@@ -175,10 +174,13 @@ def main(page: ft.Page):
     def vad_data_polling():
         """VAD数据轮询线程函数"""
         start_time = time.time()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
         while not vad_stop_event.is_set():
             try:
-                # 获取VAD数据
-                vad_data = fso_service.GetVADData()
+                # 使用异步方式获取VAD数据
+                vad_data = loop.run_until_complete(fso_service.GetVADData())
                 
                 if vad_data and vad_data.strip():
                     # 更新VAD数据显示
@@ -200,8 +202,10 @@ def main(page: ft.Page):
                     vad_status_text.value = f"获取VAD数据错误: {ex}"
                     page.update()
                 break
+        
+        loop.close()
 
-    def start_vad_recording(e):
+    async def start_vad_recording(e):
         """开始VAD录音"""
         nonlocal is_vad_recording, vad_thread
         
@@ -216,14 +220,14 @@ def main(page: ft.Page):
             
             # 初始化识别器
             if current_recognizer == "Whisper":
-                value = fso_service.CreateRecognizer(
+                value = await fso_service.CreateRecognizer(
                     recognizer="Whisper",
                     encoder=app_data_path+"/base-encoder.onnx",
                     decoder=app_data_path+"/base-decoder.onnx",
                     tokens=app_data_path+"/base-tokens.txt"
                 )
             elif current_recognizer == "senseVoice":
-                value = fso_service.CreateRecognizer(
+                value = await fso_service.CreateRecognizer(
                     recognizer="senseVoice",
                     model=app_data_path+"/model.int8.onnx",
                     tokens=app_data_path+"/tokens.txt"
@@ -232,7 +236,7 @@ def main(page: ft.Page):
             logging.info(f"VAD录音识别器创建结果: {value}")
             
             # 开始VAD录音
-            fso_service.StartRecordingWithVAD()
+            await fso_service.StartRecordingWithVAD()
             is_vad_recording = True
             
             # 启动VAD数据轮询线程
@@ -256,7 +260,7 @@ def main(page: ft.Page):
             vad_status_text.value = f"错误: {ex}"
             page.update()
 
-    def stop_vad_recording(e):
+    async def stop_vad_recording(e):
         """停止VAD录音并获取最终结果"""
         nonlocal is_vad_recording, vad_thread
         
@@ -274,7 +278,7 @@ def main(page: ft.Page):
                 vad_thread.join(timeout=2.0)
             
             # 停止VAD录音并获取最终结果
-            final_result = fso_service.StopRecordingWithVAD()
+            final_result = await fso_service.StopRecordingWithVAD()
             is_vad_recording = False
             
             # 更新UI
@@ -298,39 +302,39 @@ def main(page: ft.Page):
             vad_status_text.value = f"错误: {ex}"
             page.update()
 
-    def test_vad_functions(e):
+    async def test_vad_functions(e):
         """测试VAD相关功能"""
         logging.info("测试VAD相关功能")
         
         try:
             # 先创建识别器
             if current_recognizer == "Whisper":
-                fso_service.CreateRecognizer(
+                await fso_service.CreateRecognizer(
                     recognizer="Whisper",
                     encoder=app_data_path+"/base-encoder.onnx",
                     decoder=app_data_path+"/base-decoder.onnx",
                     tokens=app_data_path+"/base-tokens.txt"
                 )
             elif current_recognizer == "senseVoice":
-                fso_service.CreateRecognizer(
+                await fso_service.CreateRecognizer(
                     recognizer="senseVoice",
                     model=app_data_path+"/model.int8.onnx",
                     tokens=app_data_path+"/tokens.txt"
                 )
             
             # 测试StartRecordingWithVAD
-            fso_service.StartRecordingWithVAD()
+            await fso_service.StartRecordingWithVAD()
             test_status = "StartRecordingWithVAD - 成功"
             logging.info("StartRecordingWithVAD测试成功")
             
             # 等待一下然后获取VAD数据
-            time.sleep(1)
-            vad_data = fso_service.GetVADData()
+            await asyncio.sleep(1)
+            vad_data = await fso_service.GetVADData()
             test_status += f"\nGetVADData - 成功: '{vad_data}'"
             logging.info(f"GetVADData测试成功: {vad_data}")
             
             # 停止录音
-            final_result = fso_service.StopRecordingWithVAD()
+            final_result = await fso_service.StopRecordingWithVAD()
             test_status += f"\nStopRecordingWithVAD - 成功: '{final_result}'"
             logging.info(f"StopRecordingWithVAD测试成功: {final_result}")
             
@@ -348,10 +352,10 @@ def main(page: ft.Page):
             page.update()
 
     # ====== 原有的测试函数 ======
-    def test_whisper(e):
+    async def test_whisper(e):
         logging.info("测试Whisper识别器")
         try:
-            value = fso_service.CreateRecognizer(
+            value = await fso_service.CreateRecognizer(
                 recognizer="Whisper",
                 encoder=app_data_path+"/base-encoder.onnx",
                 decoder=app_data_path+"/base-decoder.onnx",
@@ -369,10 +373,10 @@ def main(page: ft.Page):
             dlg.open = True
             page.update()
 
-    def test_sense_voice(e):
+    async def test_sense_voice(e):
         logging.info("测试senseVoice识别器")
         try:
-            value = fso_service.CreateRecognizer(
+            value = await fso_service.CreateRecognizer(
                 recognizer="senseVoice",
                 model=app_data_path+"/model.int8.onnx",
                 tokens=app_data_path+"/tokens.txt"
@@ -389,10 +393,10 @@ def main(page: ft.Page):
             dlg.open = True
             page.update()
 
-    def test_whisper_vad(e):
+    async def test_whisper_vad(e):
         logging.info("测试VAD+Whisper识别器")
         try:
-            value = fso_service.CreateRecognizer(
+            value = await fso_service.CreateRecognizer(
                 recognizer="Whisper",
                 encoder=app_data_path+"/base-encoder.onnx",
                 decoder=app_data_path+"/base-decoder.onnx",
@@ -411,10 +415,10 @@ def main(page: ft.Page):
             dlg.open = True
             page.update()
 
-    def test_sense_voice_vad(e):
+    async def test_sense_voice_vad(e):
         logging.info("测试VAD+senseVoice识别器")
         try:
-            value = fso_service.CreateRecognizer(
+            value = await fso_service.CreateRecognizer(
                 recognizer="senseVoice",
                 model=app_data_path+"/model.int8.onnx",
                 tokens=app_data_path+"/tokens.txt",
@@ -432,7 +436,7 @@ def main(page: ft.Page):
             dlg.open = True
             page.update()
 
-    def switch_recognizer(e):
+    async def switch_recognizer(e):
         nonlocal current_recognizer
         if e.control.value:
             current_recognizer = e.control.value
@@ -499,7 +503,7 @@ def main(page: ft.Page):
                     status_text,
                 ]),
                 padding=10,
-                border=ft.Border.all(1, ft.Colors.BLUE),
+                border=ft.border.all(1, ft.Colors.BLUE),
                 border_radius=5,
                 margin=5
             ),
@@ -515,12 +519,12 @@ def main(page: ft.Page):
                         width=400,
                         height=100,
                         padding=10,
-                        border=ft.Border.all(1, ft.Colors.GREY),
+                        border=ft.border.all(1, ft.Colors.GREY),
                         border_radius=5
                     )
                 ]),
                 padding=10,
-                border=ft.Border.all(1, ft.Colors.GREEN),
+                border=ft.border.all(1, ft.Colors.GREEN),
                 border_radius=5,
                 margin=5
             ),
@@ -543,7 +547,7 @@ def main(page: ft.Page):
                     ], alignment=ft.MainAxisAlignment.CENTER),
                 ]),
                 padding=10,
-                border=ft.Border.all(1, ft.Colors.ORANGE),
+                border=ft.border.all(1, ft.Colors.ORANGE),
                 border_radius=5,
                 margin=5
             ),

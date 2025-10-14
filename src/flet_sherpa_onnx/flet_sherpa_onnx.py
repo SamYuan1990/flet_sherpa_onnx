@@ -9,14 +9,7 @@ class FletSherpaOnnx(ft.Service):
     """
     FletSherpaOnnx Control description.
     """
-
-    async def test(self, timeout: Optional[float] = 10) -> Optional[str]:
-        return await self._invoke_method(
-            method_name="test_method",
-            arguments={},
-            timeout=timeout,
-        )
-
+    
     async def CreateRecognizer(
         self,
         recognizer: Literal["senseVoice", "Whisper"] = "Whisper",
