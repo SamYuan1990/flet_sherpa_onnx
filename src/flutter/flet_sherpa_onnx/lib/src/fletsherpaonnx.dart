@@ -92,7 +92,10 @@ class FletSherpaOnnxService extends FletService {
     debugPrint("FletSherpaOnnxService.$name($args)");
     
     try {
-      switch (name) {    
+      switch (name) {
+        case "test_method":
+          return "response from dart";
+          
         case "CreateRecognizer":
           return _createRecognizer(args);
           
@@ -262,8 +265,9 @@ class FletSherpaOnnxService extends FletService {
       
       // 确保所有音频数据都已处理
       if (_audioBuffer.isNotEmpty) {
-        // 使用缓冲区中的所有数据进行最终识别
-        _stream.acceptWaveform(samples: _audioBuffer, sampleRate: _sampleRate);
+        // 使用缓冲区中的所有数据进行最终识别 - 转换为 Float32List
+        final float32Samples = Float32List.fromList(_audioBuffer);
+        _stream.acceptWaveform(samples: float32Samples, sampleRate: _sampleRate);
         recognizer.decode(_stream);
         final result = recognizer.getResult(_stream);
         
@@ -295,7 +299,7 @@ class FletSherpaOnnxService extends FletService {
     
     // 重置VAD
     vad?.reset();
-    synchronized(_vadResultLock, () {
+    synchronized(() {
       _vadresult.clear();
     });
     _vadStartIndex = 0;
@@ -324,13 +328,14 @@ class FletSherpaOnnxService extends FletService {
   }
 
   // 将字节数据转换为float32格式
-  List<double> _convertBytesToFloat32(Uint8List bytes, [Endian endian = Endian.little]) {
-    final values = <double>[];
+  Float32List _convertBytesToFloat32(Uint8List bytes, [Endian endian = Endian.little]) {
+    final values = Float32List(bytes.length ~/ 2);
+
     final data = ByteData.view(bytes.buffer);
 
     for (var i = 0; i < bytes.length; i += 2) {
       int short = data.getInt16(i, endian);
-      values.add(short / 32768.0);
+      values[i ~/ 2] = short / 32768.0;
     }
 
     return values;
@@ -364,7 +369,7 @@ class FletSherpaOnnxService extends FletService {
 
       // 清空音频缓冲区和VAD结果
       _audioBuffer.clear();
-      synchronized(_vadResultLock, () {
+      synchronized(() {
         _vadresult.clear();
       });
       _vadStartIndex = 0;
@@ -400,7 +405,7 @@ class FletSherpaOnnxService extends FletService {
                 final result = recognizer.getResult(_stream);
                 
                 // 将识别结果添加到vadresult（线程安全）
-                synchronized(_vadResultLock, () {
+                synchronized(() {
                   _vadresult.add(result.text);
                 });
                 
@@ -449,8 +454,9 @@ class FletSherpaOnnxService extends FletService {
         List<double> remainingSamples = _audioBuffer.sublist(_vadStartIndex);
         
         if (remainingSamples.isNotEmpty) {
-          // 使用全局_stream处理剩余音频
-          _stream.acceptWaveform(samples: remainingSamples, sampleRate: _sampleRate);
+          // 使用全局_stream处理剩余音频 - 转换为 Float32List
+          final float32Samples = Float32List.fromList(remainingSamples);
+          _stream.acceptWaveform(samples: float32Samples, sampleRate: _sampleRate);
           recognizer.decode(_stream);
           final result = recognizer.getResult(_stream);
           finalResult = result.text;
@@ -476,7 +482,7 @@ class FletSherpaOnnxService extends FletService {
 
   // 获取VAD数据并重置（线程安全版本）
   List<String> _getVADData() {
-    return synchronized(_vadResultLock, () {
+    return synchronized(() {
       List<String> temp = List.from(_vadresult);
       _vadresult.clear();
       return temp;
@@ -484,9 +490,7 @@ class FletSherpaOnnxService extends FletService {
   }
 
   // 简单的同步执行辅助函数
-  T synchronized<T>(Object lock, T Function() action) {
-    synchronized(lock) {
-      return action();
-    }
+  T synchronized<T>(T Function() action) {
+    return action();
   }
 }
