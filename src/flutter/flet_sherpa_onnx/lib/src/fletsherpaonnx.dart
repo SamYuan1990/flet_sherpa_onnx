@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flet/flet.dart';
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa_onnx;
 import 'package:record/record.dart';
-import 'package:synchronized/synchronized.dart';
+import 'package:synchronized/synchronized.dart' as sync_lib;
 
 class FletSherpaOnnxService extends FletService {
   FletSherpaOnnxService({required super.control});
@@ -36,9 +36,9 @@ class FletSherpaOnnxService extends FletService {
   static const int _sampleRate = 16000;
   final List<double> _audioBuffer = [];
   
-  // 使用 synchronized 包的 Lock 替代原来的锁对象
-  final _vadResultLock = Lock();
-  final _audioBufferLock = Lock();
+  // 使用前缀的同步锁
+  final _vadResultLock = sync_lib.Lock();
+  final _audioBufferLock = sync_lib.Lock();
 
   @override
   void init() {
