@@ -12,7 +12,7 @@ environment:
 dependencies:
   sherpa_onnx: ^1.12.13
   record: 6.0.0
-  synchronized: ^2.2.0
+  synchronized: ^3.1.0
   flutter:
     sdk: flutter
 
