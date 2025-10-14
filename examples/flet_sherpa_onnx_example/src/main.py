@@ -36,6 +36,11 @@ def main(page: ft.Page):
     is_recording = False
     current_recognizer = "Whisper"  # 默认使用Whisper
     use_vad = False  # 是否使用VAD
+    
+    # VAD录音相关变量
+    is_vad_recording = False
+    vad_timer = None
+    vad_data_text = ft.Text("VAD数据将显示在这里", size=14, selectable=True)
 
     async def is_recording_status(timeout: float | None = 5.0) -> bool:
         """检查当前是否正在录音。
@@ -162,6 +167,176 @@ def main(page: ft.Page):
         recognizer_dropdown.disabled = False  # 重新启用识别器切换
         vad_checkbox.disabled = False  # 重新启用VAD切换
 
+    # ====== VAD录音相关函数 ======
+    async def start_vad_recording(e):
+        """开始VAD录音"""
+        nonlocal is_vad_recording, vad_timer
+        
+        if is_vad_recording:
+            return
+            
+        logging.info(f"开始VAD录音，使用识别器: {current_recognizer}")
+        
+        try:
+            # 初始化识别器
+            if current_recognizer == "Whisper":
+                value = await fso_service.CreateRecognizer(
+                    recognizer="Whisper",
+                    encoder=app_data_path+"/base-encoder.onnx",
+                    decoder=app_data_path+"/base-decoder.onnx",
+                    tokens=app_data_path+"/base-tokens.txt",
+                    silerovad=app_data_path+"/silero_vad.onnx"  # VAD模型文件
+                )
+            elif current_recognizer == "senseVoice":
+                value = await fso_service.CreateRecognizer(
+                    recognizer="senseVoice",
+                    model=app_data_path+"/model.int8.onnx",
+                    tokens=app_data_path+"/tokens.txt",
+                    silerovad=app_data_path+"/silero_vad.onnx"  # VAD模型文件
+                )
+            
+            logging.info(f"VAD录音识别器创建结果: {value}")
+            
+            # 开始VAD录音
+            await fso_service.StartRecordingWithVAD()
+            is_vad_recording = True
+            
+            # 更新UI
+            vad_record_btn.content = ft.Text("停止VAD录音")
+            vad_record_btn.icon = ft.Icons.STOP
+            vad_record_btn.style = ft.ButtonStyle(color=ft.Colors.RED)
+            vad_status_text.value = "VAD录音中... 正在监听语音活动"
+            vad_data_text.value = "等待语音数据..."
+            recognizer_dropdown.disabled = True
+            record_btn.disabled = True
+            page.update()
+            
+            # 启动定时器获取VAD数据
+            vad_timer = asyncio.create_task(vad_data_polling())
+            logging.info("VAD录音已开始")
+            
+        except Exception as ex:
+            logging.error(f"开始VAD录音时出错: {ex}")
+            vad_status_text.value = f"错误: {ex}"
+            page.update()
+
+    async def stop_vad_recording(e):
+        """停止VAD录音并获取最终结果"""
+        nonlocal is_vad_recording, vad_timer
+        
+        if not is_vad_recording:
+            return
+            
+        logging.info("停止VAD录音")
+        
+        try:
+            # 取消定时器
+            if vad_timer:
+                vad_timer.cancel()
+                vad_timer = None
+            
+            # 停止VAD录音并获取最终结果
+            final_result = await fso_service.StopRecordingWithVAD()
+            is_vad_recording = False
+            
+            # 更新UI
+            vad_record_btn.content = ft.Text("开始VAD录音")
+            vad_record_btn.icon = ft.Icons.MIC
+            vad_record_btn.style = ft.ButtonStyle(color=ft.Colors.GREEN)
+            vad_status_text.value = "VAD录音已停止"
+            recognizer_dropdown.disabled = False
+            record_btn.disabled = False
+            
+            # 显示最终结果
+            dlg.content = ft.Text(f"VAD录音最终结果 ({current_recognizer}): {final_result}")
+            page.dialog = dlg
+            dlg.open = True
+            
+            page.update()
+            logging.info(f"VAD录音最终结果: {final_result}")
+            
+        except Exception as ex:
+            logging.error(f"停止VAD录音时出错: {ex}")
+            vad_status_text.value = f"错误: {ex}"
+            page.update()
+
+    async def vad_data_polling():
+        """定时获取VAD数据的任务"""
+        try:
+            while is_vad_recording:
+                # 获取VAD数据
+                vad_data = await fso_service.GetVADData()
+                
+                if vad_data and vad_data.strip():
+                    # 更新VAD数据显示
+                    current_time = asyncio.get_event_loop().time()
+                    vad_data_text.value = f"[{current_time:.1f}s] {vad_data}"
+                    page.update()
+                    logging.info(f"获取到VAD数据: {vad_data}")
+                
+                # 每隔0.5秒获取一次
+                await asyncio.sleep(0.5)
+                
+        except asyncio.CancelledError:
+            logging.info("VAD数据轮询任务已取消")
+        except Exception as ex:
+            logging.error(f"获取VAD数据时出错: {ex}")
+            if is_vad_recording:
+                vad_status_text.value = f"获取VAD数据错误: {ex}"
+                page.update()
+
+    async def test_vad_functions(e):
+        """测试VAD相关功能"""
+        logging.info("测试VAD相关功能")
+        
+        try:
+            # 先创建识别器
+            if current_recognizer == "Whisper":
+                await fso_service.CreateRecognizer(
+                    recognizer="Whisper",
+                    encoder=app_data_path+"/base-encoder.onnx",
+                    decoder=app_data_path+"/base-decoder.onnx",
+                    tokens=app_data_path+"/base-tokens.txt",
+                    silerovad=app_data_path+"/silero_vad.onnx"  # VAD模型文件
+                )
+            elif current_recognizer == "senseVoice":
+                await fso_service.CreateRecognizer(
+                    recognizer="senseVoice",
+                    model=app_data_path+"/model.int8.onnx",
+                    tokens=app_data_path+"/tokens.txt",
+                    silerovad=app_data_path+"/silero_vad.onnx"  # VAD模型文件
+                )
+            
+            # 测试StartRecordingWithVAD
+            await fso_service.StartRecordingWithVAD()
+            test_status = "StartRecordingWithVAD - 成功"
+            logging.info("StartRecordingWithVAD测试成功")
+            
+            # 等待一下然后获取VAD数据
+            await asyncio.sleep(1)
+            vad_data = await fso_service.GetVADData()
+            test_status += f"\nGetVADData - 成功: '{vad_data}'"
+            logging.info(f"GetVADData测试成功: {vad_data}")
+            
+            # 停止录音
+            final_result = await fso_service.StopRecordingWithVAD()
+            test_status += f"\nStopRecordingWithVAD - 成功: '{final_result}'"
+            logging.info(f"StopRecordingWithVAD测试成功: {final_result}")
+            
+            # 显示测试结果
+            dlg.content = ft.Text(f"VAD功能测试成功:\n{test_status}")
+            page.dialog = dlg
+            dlg.open = True
+            page.update()
+            
+        except Exception as ex:
+            logging.error(f"VAD功能测试失败: {ex}")
+            dlg.content = ft.Text(f"VAD功能测试失败: {ex}")
+            page.dialog = dlg
+            dlg.open = True
+            page.update()
+
+    # ====== 原有的测试函数 ======
     async def test_whisper(e):
         logging.info("测试Whisper识别器")
         try:
@@ -271,6 +446,16 @@ def main(page: ft.Page):
     
     status_text = ft.Text("就绪", size=16)
     
+    # VAD录音按钮
+    vad_record_btn = ft.Button(
+        content=ft.Text("开始VAD录音"),
+        icon=ft.Icons.MIC,
+        on_click=start_vad_recording,
+        style=ft.ButtonStyle(color=ft.Colors.GREEN)
+    )
+    
+    vad_status_text = ft.Text("VAD录音就绪", size=14)
+    
     # 识别器选择下拉菜单
     recognizer_dropdown = ft.Dropdown(
         label="选择识别器",
@@ -294,17 +479,64 @@ def main(page: ft.Page):
         ft.Column([
             ft.Row([recognizer_dropdown], alignment=ft.MainAxisAlignment.CENTER),
             ft.Row([vad_checkbox], alignment=ft.MainAxisAlignment.CENTER),
-            ft.Row([record_btn], alignment=ft.MainAxisAlignment.CENTER),
-            status_text,
-            ft.Row([
-                ft.Button(content="测试Whisper", on_click=test_whisper),
-                ft.Button(content="测试senseVoice", on_click=test_sense_voice),
-            ], alignment=ft.MainAxisAlignment.CENTER),
-            ft.Row([
-                ft.Button(content="测试VAD+Whisper", on_click=test_whisper_vad),
-                ft.Button(content="测试VAD+senseVoice", on_click=test_sense_voice_vad),
-            ], alignment=ft.MainAxisAlignment.CENTER),
-        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+            
+            # 普通录音区域
+            ft.Container(
+                content=ft.Column([
+                    ft.Text("普通录音模式", size=18, weight=ft.FontWeight.BOLD),
+                    ft.Row([record_btn], alignment=ft.MainAxisAlignment.CENTER),
+                    status_text,
+                ]),
+                padding=10,
+                border=ft.border.all(1, ft.Colors.BLUE),
+                border_radius=5,
+                margin=5
+            ),
+            
+            # VAD录音区域
+            ft.Container(
+                content=ft.Column([
+                    ft.Text("VAD实时录音模式", size=18, weight=ft.FontWeight.BOLD),
+                    ft.Row([vad_record_btn], alignment=ft.MainAxisAlignment.CENTER),
+                    vad_status_text,
+                    ft.Container(
+                        content=vad_data_text,
+                        width=400,
+                        height=100,
+                        padding=10,
+                        border=ft.border.all(1, ft.Colors.GREY),
+                        border_radius=5
+                    )
+                ]),
+                padding=10,
+                border=ft.border.all(1, ft.Colors.GREEN),
+                border_radius=5,
+                margin=5
+            ),
+            
+            # 测试按钮区域
+            ft.Container(
+                content=ft.Column([
+                    ft.Text("功能测试", size=18, weight=ft.FontWeight.BOLD),
+                    ft.Row([
+                        ft.Button(content="测试Whisper", on_click=test_whisper),
+                        ft.Button(content="测试senseVoice", on_click=test_sense_voice),
+                    ], alignment=ft.MainAxisAlignment.CENTER),
+                    ft.Row([
+                        ft.Button(content="测试VAD+Whisper", on_click=test_whisper_vad),
+                        ft.Button(content="测试VAD+senseVoice", on_click=test_sense_voice_vad),
+                    ], alignment=ft.MainAxisAlignment.CENTER),
+                    ft.Row([
+                        ft.Button(content="测试VAD功能", on_click=test_vad_functions, 
+                                 style=ft.ButtonStyle(color=ft.Colors.PURPLE)),
+                    ], alignment=ft.MainAxisAlignment.CENTER),
+                ]),
+                padding=10,
+                border=ft.border.all(1, ft.Colors.ORANGE),
+                border_radius=5,
+                margin=5
+            ),
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.ADAPTIVE)
     )
 
 ft.app(main)

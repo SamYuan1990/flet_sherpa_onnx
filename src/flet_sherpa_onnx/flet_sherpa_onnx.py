@@ -91,3 +91,22 @@ class FletSherpaOnnx(ft.Service):
             method_name="IsRecording",
             timeout=timeout
         )
+
+
+    async def StartRecordingWithVAD(self, timeout: Optional[float] = 10) -> Optional[str]:
+        return await self._invoke_method(
+            method_name="StartRecordingWithVAD",
+            timeout=timeout,
+        )
+
+    async def StopRecordingWithVAD(self, timeout: Optional[float] = 10) -> Optional[str]:
+        return await self._invoke_method(
+            method_name="StopRecordingWithVAD",
+            timeout=timeout
+        )
+
+    async def GetVADData(self, timeout: Optional[float] = 10) -> Optional[str]:
+        return await self._invoke_method(
+            method_name="GetVADData",
+            timeout=timeout
+        )
