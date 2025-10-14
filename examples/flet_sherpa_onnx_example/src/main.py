@@ -171,18 +171,31 @@ def main(page: ft.Page):
         vad_checkbox.disabled = False  # 重新启用VAD切换
 
     # ====== VAD录音相关函数 ======
+    def update_vad_display_ui(vad_data_str: str, current_time: float):
+        """在UI线程中更新VAD显示"""
+        vad_data_text.value = f"[{current_time:.1f}s] {vad_data_str}"
+        page.update()
+
+    def update_vad_error_ui(error_msg: str):
+        """在UI线程中更新错误状态"""
+        vad_status_text.value = f"获取VAD数据错误: {error_msg}"
+        page.update()
+
     def vad_data_polling():
         """VAD数据轮询线程函数"""
         start_time = time.time()
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
         
         while not vad_stop_event.is_set():
             try:
-                # 使用异步方式获取VAD数据
-                vad_data = loop.run_until_complete(fso_service.GetVADData())
+                # 创建新的事件循环用于这个线程
+                time.sleep(10)
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
                 
-                # 处理VAD数据 - 修复这里的问题
+                # 使用异步方式获取VAD数据
+                vad_data = loop.run_until_complete(fso_service.GetVADData(1))
+                
+                # 处理VAD数据
                 if vad_data:
                     # 如果vad_data是列表，转换为字符串
                     if isinstance(vad_data, list):
@@ -198,38 +211,22 @@ def main(page: ft.Page):
                     if vad_data_str and vad_data_str != "无数据":
                         # 更新VAD数据显示
                         current_time = time.time() - start_time
-                        # 使用page.run_task来安全地更新UI
-                        def update_vad_display():
-                            vad_data_text.value = f"[{current_time:.1f}s] {vad_data_str}"
-                            page.update()
                         
-                        # 在UI线程中更新
-                        loop.run_until_complete(asyncio.create_task(
-                            page.run_task(update_vad_display)
-                        ))
+                        # 使用page.go()来安全地更新UI（在UI线程中执行）
+                        page.go(
+                            lambda: update_vad_display_ui(vad_data_str, current_time)
+                        )
                         logging.info(f"获取到VAD数据: {vad_data_str}")
                 
-                # 每隔2秒获取一次（更频繁的更新）
-                time.sleep(10)
-                
+                loop.close()    
             except Exception as ex:
                 logging.error(f"获取VAD数据时出错: {ex}")
                 if is_vad_recording:
                     # 安全地更新状态文本
-                    def update_error_status():
-                        vad_status_text.value = f"获取VAD数据错误: {ex}"
-                        page.update()
-                    
-                    try:
-                        loop.run_until_complete(asyncio.create_task(
-                            page.run_task(update_error_status)
-                        ))
-                    except:
-                        pass
+                    page.go(lambda: update_vad_error_ui(str(ex)))
+                
                 # 短暂等待后继续尝试
-                time.sleep(1)
-        
-        loop.close()
+                time.sleep(10)
 
     async def toggle_vad_recording(e):
         """切换VAD录音状态：开始或停止VAD录音"""
