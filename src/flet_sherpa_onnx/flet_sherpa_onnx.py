@@ -9,7 +9,7 @@ class FletSherpaOnnx(ft.Service):
     """
     FletSherpaOnnx Control description.
     """
-    
+
     async def CreateRecognizer(
         self,
         recognizer: Literal["senseVoice", "Whisper"] = "Whisper",
@@ -99,6 +99,7 @@ class FletSherpaOnnx(ft.Service):
         )
 
     async def GetVADData(self, timeout: Optional[float] = 10) -> Optional[str]:
+        logging.info("invoke GetVADData to dart code")
         return await self._invoke_method(
             method_name="GetVADData",
             timeout=timeout

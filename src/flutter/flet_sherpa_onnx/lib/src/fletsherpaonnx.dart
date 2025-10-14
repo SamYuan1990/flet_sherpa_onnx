@@ -197,7 +197,7 @@ class FletSherpaOnnxService extends FletService {
       
       vad = sherpa_onnx.VoiceActivityDetector(
         config: vadConfig!, 
-        bufferSizeInSeconds: 60
+        bufferSizeInSeconds: 10
       );
       
       debugPrint("VAD initialized with window size: $_vadWindowSize");

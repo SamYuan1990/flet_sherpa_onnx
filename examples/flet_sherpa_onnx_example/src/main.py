@@ -191,8 +191,8 @@ def main(page: ft.Page):
                     page.update()
                     logging.info(f"获取到VAD数据: {vad_data}")
                 
-                # 每隔0.5秒获取一次
-                time.sleep(0.5)
+                # 每隔10秒获取一次
+                time.sleep(10)
                 
             except Exception as ex:
                 logging.error(f"获取VAD数据时出错: {ex}")
