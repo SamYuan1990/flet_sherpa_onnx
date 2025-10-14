@@ -182,26 +182,52 @@ def main(page: ft.Page):
                 # 使用异步方式获取VAD数据
                 vad_data = loop.run_until_complete(fso_service.GetVADData())
                 
-                if vad_data and vad_data.strip():
-                    # 更新VAD数据显示
-                    current_time = time.time() - start_time
-                    # 使用page.add()来安全地更新UI
-                    page.add(ft.Text(f"[{current_time:.1f}s] {vad_data}", visible=False))
-                    vad_data_text.value = f"[{current_time:.1f}s] {vad_data}"
-                    page.update()
-                    logging.info(f"获取到VAD数据: {vad_data}")
+                # 处理VAD数据 - 修复这里的问题
+                if vad_data:
+                    # 如果vad_data是列表，转换为字符串
+                    if isinstance(vad_data, list):
+                        if vad_data:  # 列表不为空
+                            # 将列表中的每个元素转换为字符串并连接
+                            vad_data_str = " | ".join(str(item) for item in vad_data)
+                        else:
+                            vad_data_str = "无数据"
+                    else:
+                        # 如果已经是字符串，直接使用
+                        vad_data_str = str(vad_data).strip() if str(vad_data).strip() else "无数据"
+                    
+                    if vad_data_str and vad_data_str != "无数据":
+                        # 更新VAD数据显示
+                        current_time = time.time() - start_time
+                        # 使用page.run_task来安全地更新UI
+                        def update_vad_display():
+                            vad_data_text.value = f"[{current_time:.1f}s] {vad_data_str}"
+                            page.update()
+                        
+                        # 在UI线程中更新
+                        loop.run_until_complete(asyncio.create_task(
+                            page.run_task(update_vad_display)
+                        ))
+                        logging.info(f"获取到VAD数据: {vad_data_str}")
                 
-                # 每隔10秒获取一次
+                # 每隔2秒获取一次（更频繁的更新）
                 time.sleep(10)
                 
             except Exception as ex:
                 logging.error(f"获取VAD数据时出错: {ex}")
                 if is_vad_recording:
                     # 安全地更新状态文本
-                    page.add(ft.Text(f"获取VAD数据错误: {ex}", visible=False))
-                    vad_status_text.value = f"获取VAD数据错误: {ex}"
-                    page.update()
-                break
+                    def update_error_status():
+                        vad_status_text.value = f"获取VAD数据错误: {ex}"
+                        page.update()
+                    
+                    try:
+                        loop.run_until_complete(asyncio.create_task(
+                            page.run_task(update_error_status)
+                        ))
+                    except:
+                        pass
+                # 短暂等待后继续尝试
+                time.sleep(1)
         
         loop.close()
 
@@ -343,8 +369,15 @@ def main(page: ft.Page):
             # 等待一下然后获取VAD数据
             await asyncio.sleep(1)
             vad_data = await fso_service.GetVADData()
-            test_status += f"\nGetVADData - 成功: '{vad_data}'"
-            logging.info(f"GetVADData测试成功: {vad_data}")
+            
+            # 正确处理VAD数据
+            if isinstance(vad_data, list):
+                vad_data_str = " | ".join(str(item) for item in vad_data) if vad_data else "空列表"
+            else:
+                vad_data_str = str(vad_data)
+                
+            test_status += f"\nGetVADData - 成功: '{vad_data_str}'"
+            logging.info(f"GetVADData测试成功: {vad_data_str}")
             
             # 停止录音
             final_result = await fso_service.StopRecordingWithVAD()
