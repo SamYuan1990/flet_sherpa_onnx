@@ -224,13 +224,15 @@ def main(page: ft.Page):
                     recognizer="Whisper",
                     encoder=app_data_path+"/base-encoder.onnx",
                     decoder=app_data_path+"/base-decoder.onnx",
-                    tokens=app_data_path+"/base-tokens.txt"
+                    tokens=app_data_path+"/base-tokens.txt",
+                    silerovad=app_data_path+"/silero_vad.onnx"  # VAD模型文件
                 )
             elif current_recognizer == "senseVoice":
                 value = await fso_service.CreateRecognizer(
                     recognizer="senseVoice",
                     model=app_data_path+"/model.int8.onnx",
-                    tokens=app_data_path+"/tokens.txt"
+                    tokens=app_data_path+"/tokens.txt",
+                    silerovad=app_data_path+"/silero_vad.onnx"  # VAD模型文件
                 )
             
             logging.info(f"VAD录音识别器创建结果: {value}")
