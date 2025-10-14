@@ -205,7 +205,18 @@ def main(page: ft.Page):
         
         loop.close()
 
-    async def start_vad_recording(e):
+    async def toggle_vad_recording(e):
+        """切换VAD录音状态：开始或停止VAD录音"""
+        nonlocal is_vad_recording
+        
+        if not is_vad_recording:
+            # 开始VAD录音
+            await start_vad_recording(e)
+        else:
+            # 停止VAD录音
+            await stop_vad_recording(e)
+
+    async def start_vad_recording(e=None):
         """开始VAD录音"""
         nonlocal is_vad_recording, vad_thread
         
@@ -262,7 +273,7 @@ def main(page: ft.Page):
             vad_status_text.value = f"错误: {ex}"
             page.update()
 
-    async def stop_vad_recording(e):
+    async def stop_vad_recording(e=None):
         """停止VAD录音并获取最终结果"""
         nonlocal is_vad_recording, vad_thread
         
@@ -463,11 +474,11 @@ def main(page: ft.Page):
     
     status_text = ft.Text("就绪", size=16)
     
-    # VAD录音按钮
+    # VAD录音按钮 - 修改为使用切换函数
     vad_record_btn = ft.Button(
         content=ft.Text("开始VAD录音"),
         icon=ft.Icons.MIC,
-        on_click=start_vad_recording,
+        on_click=toggle_vad_recording,  # 改为使用切换函数
         style=ft.ButtonStyle(color=ft.Colors.GREEN)
     )
     
@@ -555,5 +566,4 @@ def main(page: ft.Page):
             ),
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.ADAPTIVE)
     )
-
 ft.app(main)
