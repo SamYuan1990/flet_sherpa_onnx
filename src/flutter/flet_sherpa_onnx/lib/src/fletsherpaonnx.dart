@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flet/flet.dart';
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa_onnx;
 import 'package:record/record.dart';
-import 'package:synchronized/synchronized.dart' as sync_lib;
 
 class FletSherpaOnnxService extends FletService {
   FletSherpaOnnxService({required super.control});
@@ -35,10 +34,6 @@ class FletSherpaOnnxService extends FletService {
   // 音频流处理相关
   static const int _sampleRate = 16000;
   final List<double> _audioBuffer = [];
-  
-  // 使用前缀的同步锁
-  final _vadResultLock = sync_lib.Lock();
-  final _audioBufferLock = sync_lib.Lock();
 
   @override
   void init() {
@@ -67,14 +62,9 @@ class FletSherpaOnnxService extends FletService {
     _recordSub?.cancel();
     _audioRecorder.dispose();
     
-    // 使用同步锁清理资源
-    _vadResultLock.synchronized(() {
-      _vadresult.clear();
-    });
-    
-    _audioBufferLock.synchronized(() {
-      _audioBuffer.clear();
-    });
+    // 清理数据
+    _vadresult.clear();
+    _audioBuffer.clear();
     
     // 清理CircularBuffer
     try {
@@ -249,21 +239,17 @@ class FletSherpaOnnxService extends FletService {
         numChannels: 1,
       );
 
-      // 使用同步锁清空音频缓冲区
-      await _audioBufferLock.synchronized(() {
-        _audioBuffer.clear();
-      });
+      // 清空音频缓冲区
+      _audioBuffer.clear();
 
       // 开始录音流
       final audioStream = await _audioRecorder.startStream(config);
 
       audioStream.listen(
         (data) {
-          // 直接存储原始字节数据到缓冲区（使用同步锁）
+          // 直接存储原始字节数据到缓冲区
           final float32Samples = _convertBytesToFloat32(Uint8List.fromList(data));
-          _audioBufferLock.synchronized(() {
-            _audioBuffer.addAll(float32Samples);
-          });
+          _audioBuffer.addAll(float32Samples);
         },
         onDone: () {
           debugPrint("Audio stream completed");
@@ -285,28 +271,25 @@ class FletSherpaOnnxService extends FletService {
     try {
       await _audioRecorder.stop();
       
-      // 使用同步锁确保线程安全地访问音频缓冲区
-      return await _audioBufferLock.synchronized(() async {
-        // 确保所有音频数据都已处理
-        if (_audioBuffer.isNotEmpty) {
-          // 使用缓冲区中的所有数据进行最终识别 - 转换为 Float32List
-          final float32Samples = Float32List.fromList(_audioBuffer);
-          _stream.acceptWaveform(samples: float32Samples, sampleRate: _sampleRate);
-          recognizer.decode(_stream);
-          final result = recognizer.getResult(_stream);
-          
-          // 重置流以准备下一次识别
-          _stream.free();
-          _stream = recognizer.createStream();
-          
-          // 清空缓冲区
-          _audioBuffer.clear();
-          
-          return result.text;
-        }
+      // 确保所有音频数据都已处理
+      if (_audioBuffer.isNotEmpty) {
+        // 使用缓冲区中的所有数据进行最终识别 - 转换为 Float32List
+        final float32Samples = Float32List.fromList(_audioBuffer);
+        _stream.acceptWaveform(samples: float32Samples, sampleRate: _sampleRate);
+        recognizer.decode(_stream);
+        final result = recognizer.getResult(_stream);
         
-        return "";
-      });
+        // 重置流以准备下一次识别
+        _stream.free();
+        _stream = recognizer.createStream();
+        
+        // 清空缓冲区
+        _audioBuffer.clear();
+        
+        return result.text;
+      }
+      
+      return "";
     } catch (e) {
       debugPrint("Error stopping recording: $e");
       return "";
@@ -317,14 +300,9 @@ class FletSherpaOnnxService extends FletService {
   Future<void> _cancelRecording() async {
     await _audioRecorder.stop();
     
-    // 使用同步锁清理多个资源
-    await _audioBufferLock.synchronized(() {
-      _audioBuffer.clear();
-    });
-    
-    await _vadResultLock.synchronized(() {
-      _vadresult.clear();
-    });
+    // 清理数据
+    _audioBuffer.clear();
+    _vadresult.clear();
     
     // 重置流
     _stream.free();
@@ -404,14 +382,9 @@ class FletSherpaOnnxService extends FletService {
         numChannels: 1,
       );
 
-      // 使用同步锁清空音频缓冲区和VAD结果
-      await _audioBufferLock.synchronized(() {
-        _audioBuffer.clear();
-      });
-      
-      await _vadResultLock.synchronized(() {
-        _vadresult.clear();
-      });
+      // 清空音频缓冲区和VAD结果
+      _audioBuffer.clear();
+      _vadresult.clear();
       
       vad?.reset();
       
@@ -453,10 +426,8 @@ class FletSherpaOnnxService extends FletService {
               recognizer.decode(segmentStream);
               final result = recognizer.getResult(segmentStream);
                 
-              // 将识别结果添加到vadresult（使用同步锁确保线程安全）
-              _vadResultLock.synchronized(() {
-                _vadresult.add(result.text);
-              });
+              // 将识别结果添加到vadresult
+              _vadresult.add(result.text);
                 
               segmentStream.free();
               vad!.pop();
@@ -517,12 +488,10 @@ class FletSherpaOnnxService extends FletService {
     }
   }
 
-  // 获取VAD数据并重置（线程安全版本）
+  // 获取VAD数据并重置
   Future<List<String>> _getVADData() async {
-    return await _vadResultLock.synchronized(() {
-      List<String> temp = List.from(_vadresult);
-      _vadresult.clear();
-      return temp;
-    });
+    List<String> temp = List.from(_vadresult);
+    //_vadresult.clear();
+    return temp;
   }
 }
