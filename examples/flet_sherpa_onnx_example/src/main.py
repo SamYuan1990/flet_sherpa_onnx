@@ -10,6 +10,8 @@ import asyncio
 logging.basicConfig(level=logging.INFO)
 
 app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
+os.environ["FLET_APP_CONSOLE"]  = os.path.join(app_data_path, "console.log")
+print("FLET_APP_CONSOLE:" + os.getenv("FLET_APP_CONSOLE")) 
 log_file_path = os.path.join(app_data_path, "app.log")
 file_handler = RotatingFileHandler(
     log_file_path, maxBytes=1024 * 1024, backupCount=2, encoding="utf-8"  # 1MB
@@ -546,7 +548,7 @@ def main(page: ft.Page):
                     status_text,
                 ]),
                 padding=10,
-                border=ft.border.all(1, ft.Colors.BLUE),
+                border=ft.Border.all(1, ft.Colors.BLUE),
                 border_radius=5,
                 margin=5
             ),
@@ -562,12 +564,12 @@ def main(page: ft.Page):
                         width=400,
                         height=100,
                         padding=10,
-                        border=ft.border.all(1, ft.Colors.GREY),
+                        border=ft.Border.all(1, ft.Colors.GREY),
                         border_radius=5
                     )
                 ]),
                 padding=10,
-                border=ft.border.all(1, ft.Colors.GREEN),
+                border=ft.Border.all(1, ft.Colors.GREEN),
                 border_radius=5,
                 margin=5
             ),
@@ -590,7 +592,7 @@ def main(page: ft.Page):
                     ], alignment=ft.MainAxisAlignment.CENTER),
                 ]),
                 padding=10,
-                border=ft.border.all(1, ft.Colors.ORANGE),
+                border=ft.Border.all(1, ft.Colors.ORANGE),
                 border_radius=5,
                 margin=5
             ),
