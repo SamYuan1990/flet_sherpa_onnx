@@ -22,7 +22,7 @@ formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(messag
 # 将formatter添加到handler
 file_handler.setFormatter(formatter)
 logging.getLogger().addHandler(file_handler)
-
+logging.info(await ft.StoragePaths().get_console_log_filename())
 #logging.info("FLET_APP_CONSOLE:" + os.getenv("FLET_APP_CONSOLE")) 
 
 def main(page: ft.Page):
@@ -30,7 +30,6 @@ def main(page: ft.Page):
     page.appbar = ft.AppBar(title=ft.Text("flet sherpa onnx"), center_title=True)
     fso_service = fso.FletSherpaOnnx()
     page._services.append(fso_service)
-    logging.info(await ft.StoragePaths().get_console_log_filename())
     # 创建对话框
     dlg = ft.AlertDialog(
         title=ft.Text("语音识别结果"),
