@@ -22,19 +22,10 @@ formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(messag
 file_handler.setFormatter(formatter)
 logging.getLogger().addHandler(file_handler)
 
-def main(page: ft.Page):
-    # 在main函数开始时记录console log文件名
-    async def log_console_info():
-        try:
-            console_log_filename = await ft.StoragePaths().get_console_log_filename()
-            logging.info(f"Console log file: {console_log_filename}")
-            logging.info(f"App data path: {app_data_path}")
-            logging.info(f"App log file: {log_file_path}")
-        except Exception as ex:
-            logging.error(f"Failed to get console log filename: {ex}")
-    
-    # 启动异步任务记录日志信息
-    page.run_task(log_console_info)
+async def main(page: ft.Page):
+    os.environ["FLET_APP_STORAGE_TEMP"] = "/tmp/test"
+    console_log_filename = await ft.StoragePaths().get_console_log_filename()
+    logging.info(f"Console log file: {console_log_filename}")
     
     # 原有的页面设置代码
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
