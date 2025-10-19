@@ -492,6 +492,10 @@ async def main(page: ft.Page):
             current_recognizer = e.control.value
             status_text.value = f"已切换到: {current_recognizer}"
             logging.info(f"切换到识别器: {current_recognizer}")
+            console_log_filename = await ft.StoragePaths().get_console_log_filename()
+            logging.info("test")
+            logging.info(f"Console log file: {console_log_filename}")
+            logging.info("test")
             page.update()
 
     def toggle_vad(e):
