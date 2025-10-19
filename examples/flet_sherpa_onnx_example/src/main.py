@@ -9,7 +9,7 @@ import asyncio
 
 logging.basicConfig(level=logging.DEBUG)
 
-app_data_path = os.getenv("FLET_APP_STORAGE_TEMP")
+app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
 #os.environ["FLET_APP_CONSOLE"]  = os.path.join(app_data_path, "console.log")
 log_file_path = os.path.join(app_data_path, "app.log")
 file_handler = RotatingFileHandler(
