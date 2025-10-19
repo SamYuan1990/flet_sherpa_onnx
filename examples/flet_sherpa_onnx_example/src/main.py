@@ -7,29 +7,41 @@ import threading
 import time
 import asyncio
 
-logging.basicConfig(level=logging.DEBUG)
-
+# 设置基础日志配置（在main函数外）
 app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
-#os.environ["FLET_APP_CONSOLE"]  = os.path.join(app_data_path, "console.log")
 log_file_path = os.path.join(app_data_path, "app.log")
 file_handler = RotatingFileHandler(
     log_file_path, maxBytes=1024 * 1024, backupCount=2, encoding="utf-8"  # 1MB
 )
 file_handler.setLevel(logging.DEBUG)
 os.environ["FLET_SECRET_KEY"] = "DEFAULT_SECRET_KEY_CHANGE_IN_PRODUCTION"
+
 # 创建formatter
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 # 将formatter添加到handler
 file_handler.setFormatter(formatter)
 logging.getLogger().addHandler(file_handler)
-logging.info(await ft.StoragePaths().get_console_log_filename())
-#logging.info("FLET_APP_CONSOLE:" + os.getenv("FLET_APP_CONSOLE")) 
 
 def main(page: ft.Page):
+    # 在main函数开始时记录console log文件名
+    async def log_console_info():
+        try:
+            console_log_filename = await ft.StoragePaths().get_console_log_filename()
+            logging.info(f"Console log file: {console_log_filename}")
+            logging.info(f"App data path: {app_data_path}")
+            logging.info(f"App log file: {log_file_path}")
+        except Exception as ex:
+            logging.error(f"Failed to get console log filename: {ex}")
+    
+    # 启动异步任务记录日志信息
+    page.run_task(log_console_info)
+    
+    # 原有的页面设置代码
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.appbar = ft.AppBar(title=ft.Text("flet sherpa onnx"), center_title=True)
     fso_service = fso.FletSherpaOnnx()
     page._services.append(fso_service)
+    
     # 创建对话框
     dlg = ft.AlertDialog(
         title=ft.Text("语音识别结果"),
@@ -598,4 +610,5 @@ def main(page: ft.Page):
             ),
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.ADAPTIVE)
     )
+
 ft.app(main)
