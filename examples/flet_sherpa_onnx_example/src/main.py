@@ -9,7 +9,7 @@ import asyncio
 
 logging.basicConfig(level=logging.DEBUG)
 
-app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
+app_data_path = os.getenv("FLET_APP_STORAGE_TEMP")
 os.environ["FLET_APP_CONSOLE"]  = os.path.join(app_data_path, "console.log")
 log_file_path = os.path.join(app_data_path, "app.log")
 file_handler = RotatingFileHandler(
@@ -30,7 +30,7 @@ def main(page: ft.Page):
     page.appbar = ft.AppBar(title=ft.Text("flet sherpa onnx"), center_title=True)
     fso_service = fso.FletSherpaOnnx()
     page._services.append(fso_service)
-    
+    logging.info(await ft.StoragePaths().get_console_log_filename())
     # 创建对话框
     dlg = ft.AlertDialog(
         title=ft.Text("语音识别结果"),
