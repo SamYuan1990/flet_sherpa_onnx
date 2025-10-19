@@ -7,6 +7,7 @@ import threading
 import time
 import asyncio
 
+logging.basicConfig(level=logging.DEBUG)
 # 设置基础日志配置（在main函数外）
 app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
 log_file_path = os.path.join(app_data_path, "app.log")
@@ -23,10 +24,11 @@ file_handler.setFormatter(formatter)
 logging.getLogger().addHandler(file_handler)
 
 async def main(page: ft.Page):
-    os.environ["FLET_APP_STORAGE_TEMP"] = "/tmp/test"
+    #os.environ["FLET_APP_STORAGE_TEMP"] = "/tmp/test"
     console_log_filename = await ft.StoragePaths().get_console_log_filename()
+    logging.info("test")
     logging.info(f"Console log file: {console_log_filename}")
-    
+    logging.info("test")
     # 原有的页面设置代码
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.appbar = ft.AppBar(title=ft.Text("flet sherpa onnx"), center_title=True)
@@ -602,4 +604,4 @@ async def main(page: ft.Page):
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.ADAPTIVE)
     )
 
-ft.app(main)
+ft.run(main)
