@@ -10,7 +10,7 @@ import asyncio
 logging.basicConfig(level=logging.DEBUG)
 
 app_data_path = os.getenv("FLET_APP_STORAGE_TEMP")
-os.environ["FLET_APP_CONSOLE"]  = os.path.join(app_data_path, "console.log")
+#os.environ["FLET_APP_CONSOLE"]  = os.path.join(app_data_path, "console.log")
 log_file_path = os.path.join(app_data_path, "app.log")
 file_handler = RotatingFileHandler(
     log_file_path, maxBytes=1024 * 1024, backupCount=2, encoding="utf-8"  # 1MB
@@ -23,7 +23,7 @@ formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(messag
 file_handler.setFormatter(formatter)
 logging.getLogger().addHandler(file_handler)
 
-logging.info("FLET_APP_CONSOLE:" + os.getenv("FLET_APP_CONSOLE")) 
+#logging.info("FLET_APP_CONSOLE:" + os.getenv("FLET_APP_CONSOLE")) 
 
 def main(page: ft.Page):
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
