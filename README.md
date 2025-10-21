@@ -118,6 +118,7 @@ def main(page: ft.Page):
         page.update()
         
         # 初始化识别器
+        # to do add test for new parameter silerovad= app_data_path+"/silero_vad_v5.onnx"
         try:
             if current_recognizer == "Whisper":
                 value = await fso_service.CreateRecognizer(

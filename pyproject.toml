@@ -9,7 +9,7 @@ authors = [
     { name = "SamYuan", email = "yy19902439@126.com" }
 ]
 dependencies = [
-    "flet >=0.70.0.dev0",
+    "flet (>=0.70.0.dev0)",
 ]
 
 [project.urls]

@@ -205,7 +205,7 @@ class FletSherpaOnnxService extends FletService {
       
       vad = sherpa_onnx.VoiceActivityDetector(
         config: vadConfig!, 
-        bufferSizeInSeconds: 10
+        bufferSizeInSeconds: 30
       );
       
       debugPrint("VAD initialized with window size: $_vadWindowSize");
@@ -425,12 +425,13 @@ class FletSherpaOnnxService extends FletService {
               segmentStream.acceptWaveform(samples: segmentSamples, sampleRate: _sampleRate);
               recognizer.decode(segmentStream);
               final result = recognizer.getResult(segmentStream);
-                
-              // 将识别结果添加到vadresult
-              _vadresult.add(result.text);
-                
               segmentStream.free();
               vad!.pop();
+              // 将识别结果添加到vadresult
+              if (result.text != '') {
+                _vadresult.add(result.text);
+              }
+              // todo trigger an event
             }
           }
         },
@@ -463,18 +464,15 @@ class FletSherpaOnnxService extends FletService {
         vad!.flush();
         
         // 处理剩余的VAD片段
-        while (!vad!.isEmpty()) {
-          final segment = vad!.front();
-          final samples = segment.samples;          
-          final segmentStream = recognizer.createStream();
-          segmentStream.acceptWaveform(samples: samples, sampleRate: _sampleRate);
-          recognizer.decode(segmentStream);
-          final result = recognizer.getResult(segmentStream);
-          finalResult = result.text;
-          
-          segmentStream.free();
-          vad!.pop();
-        }
+        final segment = vad!.front();
+        final samples = segment.samples;          
+        final segmentStream = recognizer.createStream();
+        segmentStream.acceptWaveform(samples: samples, sampleRate: _sampleRate);
+        recognizer.decode(segmentStream);
+        final result = recognizer.getResult(segmentStream);
+        finalResult = result.text;  
+        segmentStream.free();
+        vad!.pop();
       
         // 清理CircularBuffer
         _circularBuffer!.free();
