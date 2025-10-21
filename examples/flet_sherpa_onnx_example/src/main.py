@@ -3,7 +3,6 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 import flet_sherpa_onnx as fso
-import threading
 import time
 import asyncio
 
@@ -48,9 +47,8 @@ async def main(page: ft.Page):
     
     # VAD录音相关变量
     is_vad_recording = False
-    vad_thread = None
-    vad_stop_event = threading.Event()
     vad_data_text = ft.Text("VAD数据将显示在这里", size=14, selectable=True)
+    vad_polling_task = None  # 用于存储VAD轮询任务
 
     async def is_recording_status(timeout: float | None = 5.0) -> bool:
         """检查当前是否正在录音。
@@ -179,28 +177,23 @@ async def main(page: ft.Page):
 
     # ====== VAD录音相关函数 ======
     def update_vad_display_ui(vad_data_str: str, current_time: float):
-        """在UI线程中更新VAD显示"""
+        """更新VAD显示"""
         vad_data_text.value = f"[{current_time:.1f}s] {vad_data_str}"
         page.update()
 
     def update_vad_error_ui(error_msg: str):
-        """在UI线程中更新错误状态"""
+        """更新错误状态"""
         vad_status_text.value = f"获取VAD数据错误: {error_msg}"
         page.update()
 
-    def vad_data_polling():
-        """VAD数据轮询线程函数"""
+    async def vad_data_polling():
+        """VAD数据轮询异步任务"""
         start_time = time.time()
         
-        while not vad_stop_event.is_set():
+        while is_vad_recording:
             try:
-                # 创建新的事件循环用于这个线程
-                time.sleep(10)
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                
                 # 使用异步方式获取VAD数据
-                vad_data = loop.run_until_complete(fso_service.GetVADData(1))
+                vad_data = await fso_service.GetVADData()
                 
                 # 处理VAD数据
                 if vad_data:
@@ -219,25 +212,27 @@ async def main(page: ft.Page):
                         # 更新VAD数据显示
                         current_time = time.time() - start_time
                         
-                        # 使用page.go()来安全地更新UI（在UI线程中执行）
-                        page.go(
+                        # 使用page.run_task更新UI
+                        page.run_task(
                             lambda: update_vad_display_ui(vad_data_str, current_time)
                         )
                         logging.info(f"获取到VAD数据: {vad_data_str}")
                 
-                loop.close()    
+                # 等待一段时间再继续，避免过于频繁的请求
+                await asyncio.sleep(10)
+                
             except Exception as ex:
                 logging.error(f"获取VAD数据时出错: {ex}")
                 if is_vad_recording:
                     # 安全地更新状态文本
-                    page.go(lambda: update_vad_error_ui(str(ex)))
+                    page.run_task(lambda: update_vad_error_ui(str(ex)))
                 
                 # 短暂等待后继续尝试
-                time.sleep(10)
+                await asyncio.sleep(10)
 
     async def toggle_vad_recording(e):
         """切换VAD录音状态：开始或停止VAD录音"""
-        nonlocal is_vad_recording
+        nonlocal is_vad_recording, vad_polling_task
         
         if not is_vad_recording:
             # 开始VAD录音
@@ -248,7 +243,7 @@ async def main(page: ft.Page):
 
     async def start_vad_recording(e=None):
         """开始VAD录音"""
-        nonlocal is_vad_recording, vad_thread
+        nonlocal is_vad_recording, vad_polling_task
         
         if is_vad_recording:
             return
@@ -256,9 +251,6 @@ async def main(page: ft.Page):
         logging.info(f"开始VAD录音，使用识别器: {current_recognizer}")
         
         try:
-            # 重置停止事件
-            vad_stop_event.clear()
-            
             # 初始化识别器
             if current_recognizer == "Whisper":
                 value = await fso_service.CreateRecognizer(
@@ -282,9 +274,8 @@ async def main(page: ft.Page):
             await fso_service.StartRecordingWithVAD()
             is_vad_recording = True
             
-            # 启动VAD数据轮询线程
-            vad_thread = threading.Thread(target=vad_data_polling, daemon=True)
-            vad_thread.start()
+            # 启动VAD数据轮询任务
+            vad_polling_task = asyncio.create_task(vad_data_polling())
             
             # 更新UI
             vad_record_btn.content = ft.Text("停止VAD录音")
@@ -305,7 +296,7 @@ async def main(page: ft.Page):
 
     async def stop_vad_recording(e=None):
         """停止VAD录音并获取最终结果"""
-        nonlocal is_vad_recording, vad_thread
+        nonlocal is_vad_recording, vad_polling_task
         
         if not is_vad_recording:
             return
@@ -313,12 +304,13 @@ async def main(page: ft.Page):
         logging.info("停止VAD录音")
         
         try:
-            # 设置停止事件，停止轮询线程
-            vad_stop_event.set()
-            
-            # 等待线程结束（最多等待2秒）
-            if vad_thread and vad_thread.is_alive():
-                vad_thread.join(timeout=2.0)
+            # 取消轮询任务
+            if vad_polling_task and not vad_polling_task.cancelled():
+                vad_polling_task.cancel()
+                try:
+                    await vad_polling_task
+                except asyncio.CancelledError:
+                    pass  # 任务被取消是预期的
             
             # 停止VAD录音并获取最终结果
             final_result = await fso_service.StopRecordingWithVAD()
@@ -371,7 +363,7 @@ async def main(page: ft.Page):
             logging.info("StartRecordingWithVAD测试成功")
             
             # 等待一下然后获取VAD数据
-            await asyncio.sleep(1)
+            await asyncio.sleep(10)
             vad_data = await fso_service.GetVADData()
             
             # 正确处理VAD数据
