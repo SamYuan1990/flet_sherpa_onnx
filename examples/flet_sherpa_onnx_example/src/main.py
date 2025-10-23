@@ -4,6 +4,7 @@ from logging.handlers import RotatingFileHandler
 import os
 import flet_sherpa_onnx as fso
 import time
+
 import asyncio
 
 logging.basicConfig(level=logging.DEBUG)
@@ -48,7 +49,6 @@ async def main(page: ft.Page):
     # VAD录音相关变量
     is_vad_recording = False
     vad_data_text = ft.Text("VAD数据将显示在这里", size=14, selectable=True)
-    vad_polling_task = None  # 用于存储VAD轮询任务
 
     async def is_recording_status(timeout: float | None = 5.0) -> bool:
         """检查当前是否正在录音。
@@ -175,64 +175,9 @@ async def main(page: ft.Page):
         recognizer_dropdown.disabled = False  # 重新启用识别器切换
         vad_checkbox.disabled = False  # 重新启用VAD切换
 
-    # ====== VAD录音相关函数 ======
-    def update_vad_display_ui(vad_data_str: str, current_time: float):
-        """更新VAD显示"""
-        vad_data_text.value = f"[{current_time:.1f}s] {vad_data_str}"
-        page.update()
-
-    def update_vad_error_ui(error_msg: str):
-        """更新错误状态"""
-        vad_status_text.value = f"获取VAD数据错误: {error_msg}"
-        page.update()
-
-    async def vad_data_polling():
-        """VAD数据轮询异步任务"""
-        start_time = time.time()
-        
-        while is_vad_recording:
-            try:
-                # 使用异步方式获取VAD数据
-                vad_data = await fso_service.GetVADData()
-                
-                # 处理VAD数据
-                if vad_data:
-                    # 如果vad_data是列表，转换为字符串
-                    if isinstance(vad_data, list):
-                        if vad_data:  # 列表不为空
-                            # 将列表中的每个元素转换为字符串并连接
-                            vad_data_str = " | ".join(str(item) for item in vad_data)
-                        else:
-                            vad_data_str = "无数据"
-                    else:
-                        # 如果已经是字符串，直接使用
-                        vad_data_str = str(vad_data).strip() if str(vad_data).strip() else "无数据"
-                    
-                    if vad_data_str and vad_data_str != "无数据":
-                        # 更新VAD数据显示
-                        current_time = time.time() - start_time
-                        
-                        # 使用page.run_task更新UI
-                        page.run_task(
-                            lambda: update_vad_display_ui(vad_data_str, current_time)
-                        )
-                        logging.info(f"获取到VAD数据: {vad_data_str}")
-                
-                # 等待一段时间再继续，避免过于频繁的请求
-                await asyncio.sleep(10)
-                
-            except Exception as ex:
-                logging.error(f"获取VAD数据时出错: {ex}")
-                if is_vad_recording:
-                    # 安全地更新状态文本
-                    page.run_task(lambda: update_vad_error_ui(str(ex)))
-                
-                # 短暂等待后继续尝试
-                await asyncio.sleep(10)
-
     async def toggle_vad_recording(e):
         """切换VAD录音状态：开始或停止VAD录音"""
-        nonlocal is_vad_recording, vad_polling_task
+        nonlocal is_vad_recording
         
         if not is_vad_recording:
             # 开始VAD录音
@@ -243,7 +188,7 @@ async def main(page: ft.Page):
 
     async def start_vad_recording(e=None):
         """开始VAD录音"""
-        nonlocal is_vad_recording, vad_polling_task
+        nonlocal is_vad_recording
         
         if is_vad_recording:
             return
@@ -272,11 +217,7 @@ async def main(page: ft.Page):
             
             # 开始VAD录音
             await fso_service.StartRecordingWithVAD()
-            is_vad_recording = True
-            
-            # 启动VAD数据轮询任务
-            vad_polling_task = asyncio.create_task(vad_data_polling())
-            
+            is_vad_recording = True            
             # 更新UI
             vad_record_btn.content = ft.Text("停止VAD录音")
             vad_record_btn.icon = ft.Icons.STOP
@@ -288,30 +229,39 @@ async def main(page: ft.Page):
             page.update()
             
             logging.info("VAD录音已开始")
+            page.run_thread(self.sync_wrapper)
             
         except Exception as ex:
             logging.error(f"开始VAD录音时出错: {ex}")
             vad_status_text.value = f"错误: {ex}"
             page.update()
 
+    # 如果你有一个异步函数，可以这样包装
+    async def _vad_result(self):
+        nonlocal is_vad_recording
+        while is_vad_recording:
+            await asyncio.sleep(10)
+            if not is_vad_recording:
+                return
+            vad_data = await fso_service.GetVADData()
+            vad_data_text.value = vad_data
+            page.update()
+
+    # 包装成同步函数
+    def sync_wrapper(self):
+        # 在当前线程的事件循环中运行
+        asyncio.create_task(self._vad_result())
+
     async def stop_vad_recording(e=None):
         """停止VAD录音并获取最终结果"""
-        nonlocal is_vad_recording, vad_polling_task
+        nonlocal is_vad_recording
         
         if not is_vad_recording:
             return
             
         logging.info("停止VAD录音")
         
-        try:
-            # 取消轮询任务
-            if vad_polling_task and not vad_polling_task.cancelled():
-                vad_polling_task.cancel()
-                try:
-                    await vad_polling_task
-                except asyncio.CancelledError:
-                    pass  # 任务被取消是预期的
-            
+        try:            
             # 停止VAD录音并获取最终结果
             final_result = await fso_service.StopRecordingWithVAD()
             is_vad_recording = False
@@ -335,147 +285,6 @@ async def main(page: ft.Page):
         except Exception as ex:
             logging.error(f"停止VAD录音时出错: {ex}")
             vad_status_text.value = f"错误: {ex}"
-            page.update()
-
-    async def test_vad_functions(e):
-        """测试VAD相关功能"""
-        logging.info("测试VAD相关功能")
-        
-        try:
-            # 先创建识别器
-            if current_recognizer == "Whisper":
-                await fso_service.CreateRecognizer(
-                    recognizer="Whisper",
-                    encoder=app_data_path+"/base-encoder.onnx",
-                    decoder=app_data_path+"/base-decoder.onnx",
-                    tokens=app_data_path+"/base-tokens.txt"
-                )
-            elif current_recognizer == "senseVoice":
-                await fso_service.CreateRecognizer(
-                    recognizer="senseVoice",
-                    model=app_data_path+"/model.int8.onnx",
-                    tokens=app_data_path+"/tokens.txt"
-                )
-            
-            # 测试StartRecordingWithVAD
-            await fso_service.StartRecordingWithVAD()
-            test_status = "StartRecordingWithVAD - 成功"
-            logging.info("StartRecordingWithVAD测试成功")
-            
-            # 等待一下然后获取VAD数据
-            await asyncio.sleep(10)
-            vad_data = await fso_service.GetVADData()
-            
-            # 正确处理VAD数据
-            if isinstance(vad_data, list):
-                vad_data_str = " | ".join(str(item) for item in vad_data) if vad_data else "空列表"
-            else:
-                vad_data_str = str(vad_data)
-                
-            test_status += f"\nGetVADData - 成功: '{vad_data_str}'"
-            logging.info(f"GetVADData测试成功: {vad_data_str}")
-            
-            # 停止录音
-            final_result = await fso_service.StopRecordingWithVAD()
-            test_status += f"\nStopRecordingWithVAD - 成功: '{final_result}'"
-            logging.info(f"StopRecordingWithVAD测试成功: {final_result}")
-            
-            # 显示测试结果
-            dlg.content = ft.Text(f"VAD功能测试成功:\n{test_status}")
-            page.dialog = dlg
-            dlg.open = True
-            page.update()
-            
-        except Exception as ex:
-            logging.error(f"VAD功能测试失败: {ex}")
-            dlg.content = ft.Text(f"VAD功能测试失败: {ex}")
-            page.dialog = dlg
-            dlg.open = True
-            page.update()
-
-    # ====== 原有的测试函数 ======
-    async def test_whisper(e):
-        logging.info("测试Whisper识别器")
-        try:
-            value = await fso_service.CreateRecognizer(
-                recognizer="Whisper",
-                encoder=app_data_path+"/base-encoder.onnx",
-                decoder=app_data_path+"/base-decoder.onnx",
-                tokens=app_data_path+"/base-tokens.txt"
-            )
-            logging.info(f"Whisper识别器创建结果: {value}")
-            dlg.content = ft.Text(f"Whisper测试成功: {value}")
-            page.dialog = dlg
-            dlg.open = True
-            page.update()
-        except Exception as ex:
-            logging.error(f"测试Whisper时出错: {ex}")
-            dlg.content = ft.Text(f"Whisper测试失败: {ex}")
-            page.dialog = dlg
-            dlg.open = True
-            page.update()
-
-    async def test_sense_voice(e):
-        logging.info("测试senseVoice识别器")
-        try:
-            value = await fso_service.CreateRecognizer(
-                recognizer="senseVoice",
-                model=app_data_path+"/model.int8.onnx",
-                tokens=app_data_path+"/tokens.txt"
-            )
-            logging.info(f"senseVoice识别器创建结果: {value}")
-            dlg.content = ft.Text(f"senseVoice测试成功: {value}")
-            page.dialog = dlg
-            dlg.open = True
-            page.update()
-        except Exception as ex:
-            logging.error(f"测试senseVoice时出错: {ex}")
-            dlg.content = ft.Text(f"senseVoice测试失败: {ex}")
-            page.dialog = dlg
-            dlg.open = True
-            page.update()
-
-    async def test_whisper_vad(e):
-        logging.info("测试VAD+Whisper识别器")
-        try:
-            value = await fso_service.CreateRecognizer(
-                recognizer="Whisper",
-                encoder=app_data_path+"/base-encoder.onnx",
-                decoder=app_data_path+"/base-decoder.onnx",
-                tokens=app_data_path+"/base-tokens.txt",
-                silerovad=app_data_path+"/silero_vad.onnx"  # VAD模型文件
-            )
-            logging.info(f"VAD+Whisper识别器创建结果: {value}")
-            dlg.content = ft.Text(f"VAD+Whisper测试成功: {value}")
-            page.dialog = dlg
-            dlg.open = True
-            page.update()
-        except Exception as ex:
-            logging.error(f"测试VAD+Whisper时出错: {ex}")
-            dlg.content = ft.Text(f"VAD+Whisper测试失败: {ex}")
-            page.dialog = dlg
-            dlg.open = True
-            page.update()
-
-    async def test_sense_voice_vad(e):
-        logging.info("测试VAD+senseVoice识别器")
-        try:
-            value = await fso_service.CreateRecognizer(
-                recognizer="senseVoice",
-                model=app_data_path+"/model.int8.onnx",
-                tokens=app_data_path+"/tokens.txt",
-                silerovad=app_data_path+"/silero_vad.onnx"  # VAD模型文件
-            )
-            logging.info(f"VAD+senseVoice识别器创建结果: {value}")
-            dlg.content = ft.Text(f"VAD+senseVoice测试成功: {value}")
-            page.dialog = dlg
-            dlg.open = True
-            page.update()
-        except Exception as ex:
-            logging.error(f"测试VAD+senseVoice时出错: {ex}")
-            dlg.content = ft.Text(f"VAD+senseVoice测试失败: {ex}")
-            page.dialog = dlg
-            dlg.open = True
             page.update()
 
     async def switch_recognizer(e):
@@ -571,29 +380,6 @@ async def main(page: ft.Page):
                 ]),
                 padding=10,
                 border=ft.Border.all(1, ft.Colors.GREEN),
-                border_radius=5,
-                margin=5
-            ),
-            
-            # 测试按钮区域
-            ft.Container(
-                content=ft.Column([
-                    ft.Text("功能测试", size=18, weight=ft.FontWeight.BOLD),
-                    ft.Row([
-                        ft.Button(content="测试Whisper", on_click=test_whisper),
-                        ft.Button(content="测试senseVoice", on_click=test_sense_voice),
-                    ], alignment=ft.MainAxisAlignment.CENTER),
-                    ft.Row([
-                        ft.Button(content="测试VAD+Whisper", on_click=test_whisper_vad),
-                        ft.Button(content="测试VAD+senseVoice", on_click=test_sense_voice_vad),
-                    ], alignment=ft.MainAxisAlignment.CENTER),
-                    ft.Row([
-                        ft.Button(content="测试VAD功能", on_click=test_vad_functions, 
-                                 style=ft.ButtonStyle(color=ft.Colors.PURPLE)),
-                    ], alignment=ft.MainAxisAlignment.CENTER),
-                ]),
-                padding=10,
-                border=ft.Border.all(1, ft.Colors.ORANGE),
                 border_radius=5,
                 margin=5
             ),
