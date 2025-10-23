@@ -1,6 +1,6 @@
 [project]
 name = "flet-sherpa-onnx"
-version = "0.2.0"
+version = "0.0.2"
 description = "FletSherpaOnnx control for Flet"
 readme = "README.md"
 requires-python = ">=3.12"
