@@ -229,7 +229,8 @@ async def main(page: ft.Page):
             page.update()
             
             logging.info("VAD录音已开始")
-            page.run_thread(sync_wrapper)
+            #page.run_thread(sync_wrapper)
+            page.run_task(_vad_result)
             
         except Exception as ex:
             logging.error(f"开始VAD录音时出错: {ex}")
