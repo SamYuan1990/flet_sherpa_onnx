@@ -229,7 +229,7 @@ async def main(page: ft.Page):
             page.update()
             
             logging.info("VAD录音已开始")
-            page.run_thread(self.sync_wrapper)
+            page.run_thread(sync_wrapper)
             
         except Exception as ex:
             logging.error(f"开始VAD录音时出错: {ex}")
@@ -237,7 +237,7 @@ async def main(page: ft.Page):
             page.update()
 
     # 如果你有一个异步函数，可以这样包装
-    async def _vad_result(self):
+    async def _vad_result():
         nonlocal is_vad_recording
         while is_vad_recording:
             await asyncio.sleep(10)
@@ -248,9 +248,9 @@ async def main(page: ft.Page):
             page.update()
 
     # 包装成同步函数
-    def sync_wrapper(self):
+    def sync_wrapper():
         # 在当前线程的事件循环中运行
-        asyncio.create_task(self._vad_result())
+        asyncio.create_task(_vad_result())
 
     async def stop_vad_recording(e=None):
         """停止VAD录音并获取最终结果"""
@@ -275,10 +275,10 @@ async def main(page: ft.Page):
             record_btn.disabled = False
             
             # 显示最终结果
-            dlg.content = ft.Text(f"VAD录音最终结果 ({current_recognizer}): {final_result}")
-            page.dialog = dlg
-            dlg.open = True
-            
+            #dlg.content = ft.Text(f"VAD录音最终结果 ({current_recognizer}): {final_result}")
+            #page.dialog = dlg
+            #dlg.open = True
+            vad_data_text.value = final_result
             page.update()
             logging.info(f"VAD录音最终结果: {final_result}")
             
