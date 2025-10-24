@@ -244,6 +244,7 @@ async def main(page: ft.Page):
             await asyncio.sleep(10)
             if not is_vad_recording:
                 return
+            vad_data = await fso_service.GetVADData()
             if isinstance(vad_data, (list, tuple)):
                 formatted_data = "\n".join(str(item) for item in vad_data)
             else:

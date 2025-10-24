@@ -7,9 +7,12 @@ FletSherpaOnnx service for Flet
 ## A flet componment which supports STT
 For now, supports whisper and senseVoice.
 todo:
-- [ ] event?
-- [ ] declarative example
-- [ ] parakeet-tdt support
+- [ ] limit string reg for 5 to avoid OOM.(cut of 0.0.2 release)
+- [ ] event support(need testing with flet, UX change worth a release)
+- [ ] onlinestreaming model(extend scope of model, worth a release)
+- [ ] declarative example(waiting for flet, UX change worth a release)
+- [ ] flexiable parameter support(UX change worth a release)
+- [ ] parakeet-tdt and other models support?(UX change worth maybe a feature to sherpa_onnx?)
 
 ## Installation
 
