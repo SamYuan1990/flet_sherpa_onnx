@@ -4,8 +4,10 @@
 
 FletSherpaOnnx service for Flet
 
-## A flet componment which supports STT
+## A flet componment which supports STT/ASR
 For now, supports whisper and senseVoice.
+Support for vad + whisper and senseVoice, for real time ASR.
+
 todo:
 - [ ] event support(need testing with flet, UX change worth a release)
 - [ ] onlinestreaming model(extend scope of model, worth a release)
@@ -17,24 +19,11 @@ todo:
 
 Add dependency to `pyproject.toml` of your Flet app:
 
-* **Git dependency**
-
 Link to git repository:
 
 ```
 dependencies = [
-  "flet-sherpa-onnx @ git+https://github.com/SamYuan1990/flet-sherpa-onnx",
-  "flet>=0.28.3",
-]
-```
-
-* **PyPi dependency**  
-
-If the package is published on pypi.org:
-
-```
-dependencies = [
-  "flet-sherpa-onnx @ git+https://github.com/SamYuan1990/flet-sherpa-onnx",
+  "flet-sherpa-onnx==0.0.2",
   "flet>=0.28.3",
 ]
 ```
