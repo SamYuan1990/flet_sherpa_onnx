@@ -23,7 +23,9 @@ class FletSherpaOnnxService extends FletService {
   sherpa_onnx.VadModelConfig? vadConfig;
   sherpa_onnx.CircularBuffer? _circularBuffer;
   bool _useVad = false;
-  final List<String> _vadresult = [];
+  // 修改为固定长度为5的数组
+  final List<String> _vadresult = List.filled(5, '', growable: false);
+  int _vadCurrentIndex = 0; // 当前写入位置
   int _vadWindowSize = 512;
   
   // 录音相关变量
@@ -63,7 +65,7 @@ class FletSherpaOnnxService extends FletService {
     _audioRecorder.dispose();
     
     // 清理数据
-    _vadresult.clear();
+    _resetVadResult();
     _audioBuffer.clear();
     
     // 清理CircularBuffer
@@ -302,7 +304,7 @@ class FletSherpaOnnxService extends FletService {
     
     // 清理数据
     _audioBuffer.clear();
-    _vadresult.clear();
+    _resetVadResult();
     
     // 重置流
     _stream.free();
@@ -356,6 +358,26 @@ class FletSherpaOnnxService extends FletService {
     return values;
   }
 
+  // 重置VAD结果数组
+  void _resetVadResult() {
+    for (int i = 0; i < _vadresult.length; i++) {
+      _vadresult[i] = '';
+    }
+    _vadCurrentIndex = 0;
+  }
+
+  // 添加VAD识别结果到固定长度数组
+  void _addVadResult(String text) {
+    if (text.isEmpty) return;
+    
+    // 将结果添加到当前索引位置
+    _vadresult[_vadCurrentIndex] = text;
+    
+    // 移动到下一个位置（循环）
+    _vadCurrentIndex = (_vadCurrentIndex + 1) % _vadresult.length;
+    debugPrint("VAD result added: $text, current index: $_vadCurrentIndex");
+  }
+
   // 开始带VAD的录音
   Future<bool> _startRecordingWithVAD() async {
     try {
@@ -384,7 +406,7 @@ class FletSherpaOnnxService extends FletService {
 
       // 清空音频缓冲区和VAD结果
       _audioBuffer.clear();
-      _vadresult.clear();
+      _resetVadResult();
       
       vad?.reset();
       
@@ -427,9 +449,10 @@ class FletSherpaOnnxService extends FletService {
               final result = recognizer.getResult(segmentStream);
               segmentStream.free();
               vad!.pop();
-              // 将识别结果添加到vadresult
-              if (result.text != '') {
-                _vadresult.add(result.text);
+              
+              // 将识别结果添加到固定长度的vadresult数组
+              if (result.text.isNotEmpty) {
+                _addVadResult(result.text);
               }
               // todo trigger an event
             }
@@ -479,7 +502,17 @@ class FletSherpaOnnxService extends FletService {
         _circularBuffer = null;
       }
       
-      return finalResult; // 只返回剩余音频的识别结果
+      // 将当前_vadresult的内容追加到finalResult之前
+      if (_vadresult.isNotEmpty) {
+        String vadResultsText = _vadresult.join(' ');
+        if (finalResult.isNotEmpty) {
+          finalResult = '$vadResultsText $finalResult';
+        } else {
+          finalResult = vadResultsText;
+        }
+      }
+      
+      return finalResult;
     } catch (e) {
       debugPrint("Error stopping recording with VAD: $e");
       return "";
@@ -488,8 +521,6 @@ class FletSherpaOnnxService extends FletService {
 
   // 获取VAD数据并重置
   Future<List<String>> _getVADData() async {
-    List<String> temp = List.from(_vadresult);
-    //_vadresult.clear();
-    return temp;
+    return _vadresult;
   }
 }
