@@ -249,6 +249,7 @@ async def main(page: ft.Page):
                 formatted_data = "\n".join(str(item) for item in vad_data)
             else:
                 formatted_data = str(vad_data)
+            vad_data_text.value = formatted_data
             page.update()
 
     # 包装成同步函数
