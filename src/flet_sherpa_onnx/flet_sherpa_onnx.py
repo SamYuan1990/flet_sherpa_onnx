@@ -10,6 +10,15 @@ class FletSherpaOnnx(ft.Service):
     FletSherpaOnnx Control description.
     """
 
+    def __init__(self):
+        super().__init__()
+        self._useVad = False  # 内部变量，表示是否使用VAD
+
+    @property
+    def useVad(self) -> bool:
+        """获取是否使用VAD的状态"""
+        return self._useVad
+
     async def CreateRecognizer(
         self,
         recognizer: Literal["senseVoice", "Whisper"] = "Whisper",
@@ -41,6 +50,9 @@ class FletSherpaOnnx(ft.Service):
         # Validate recognizer parameter
         if recognizer not in ["senseVoice", "Whisper"]:
             raise ValueError(f"recognizer must be 'senseVoice' or 'Whisper', got '{recognizer}'")
+
+        # 根据silerovad参数设置useVad状态
+        self._useVad = silerovad is not None and silerovad.strip() != ""
 
         return await self._invoke_method(
             method_name="CreateRecognizer",
@@ -82,19 +94,6 @@ class FletSherpaOnnx(ft.Service):
         """
         return await self._invoke_method(
             method_name="IsRecording",
-            timeout=timeout
-        )
-
-
-    async def StartRecordingWithVAD(self, timeout: Optional[float] = 10) -> Optional[str]:
-        return await self._invoke_method(
-            method_name="StartRecordingWithVAD",
-            timeout=timeout,
-        )
-
-    async def StopRecordingWithVAD(self, timeout: Optional[float] = 10) -> Optional[str]:
-        return await self._invoke_method(
-            method_name="StopRecordingWithVAD",
             timeout=timeout
         )
 

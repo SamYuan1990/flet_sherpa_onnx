@@ -6,14 +6,21 @@ FletSherpaOnnx service for Flet
 
 ## A flet componment which supports STT/ASR
 For now, supports whisper and senseVoice.
-Support for vad + whisper and senseVoice, for real time ASR.
 
-todo:
-- [ ] event support(need testing with flet, UX change worth a release)
-- [ ] onlinestreaming model(extend scope of model, worth a release)
-- [ ] declarative example(waiting for flet, UX change worth a release)
-- [ ] flexiable parameter support(UX change worth a release)
+### Release log
+0.0.2 Support for vad + whisper and senseVoice, for real time ASR.
+0.2.1 UX change in python code, clean code in dart. Better version system.
+
+todo in 0.2.x
 - [ ] parakeet-tdt and other models support?(UX change worth maybe a feature to sherpa_onnx?)
+- [ ] flexiable parameter support(UX change worth a release)
+
+todo in 0.3.x
+- [ ] onlinestreaming model(extend scope of model, worth a release)
+
+todo in 0.4.x
+- [ ] event support(need testing with flet, UX change worth a release)
+- [ ] declarative example(waiting for flet, UX change worth a release)
 
 ## Installation
 

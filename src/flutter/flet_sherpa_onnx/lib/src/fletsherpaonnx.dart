@@ -115,12 +115,6 @@ class FletSherpaOnnxService extends FletService {
         case "StopRecording":
           return await _stopRecording();
 
-        case "StartRecordingWithVAD":
-          return await _startRecordingWithVAD();
-          
-        case "StopRecordingWithVAD":
-          return await _stopRecordingWithVAD();
-
         case "GetVADData":
           return await _getVADData();
           
@@ -220,7 +214,7 @@ class FletSherpaOnnxService extends FletService {
     return "Recognizer created successfully${_useVad ? ' with VAD' : ''}";
   }
 
-  // 开始录音
+  // 开始录音 - 基于全局变量 _useVad
   Future<bool> _startRecording() async {
     try {
       if (!await _audioRecorder.hasPermission()) {
@@ -244,14 +238,30 @@ class FletSherpaOnnxService extends FletService {
       // 清空音频缓冲区
       _audioBuffer.clear();
 
+      if (_useVad) {
+        // VAD模式：重置VAD结果和初始化
+        _resetVadResult();
+        vad?.reset();
+        
+        // 初始化CircularBuffer - 30秒容量
+        _circularBuffer?.free();
+        _circularBuffer = sherpa_onnx.CircularBuffer(capacity: 30 * _sampleRate);
+        debugPrint("Starting VAD recording with circular buffer");
+      }
+
       // 开始录音流
       final audioStream = await _audioRecorder.startStream(config);
 
       audioStream.listen(
         (data) {
-          // 直接存储原始字节数据到缓冲区
-          final float32Samples = _convertBytesToFloat32(Uint8List.fromList(data));
-          _audioBuffer.addAll(float32Samples);
+          if (_useVad) {
+            // VAD处理逻辑
+            _processAudioWithVAD(data);
+          } else {
+            // 普通录音处理逻辑
+            final float32Samples = _convertBytesToFloat32(Uint8List.fromList(data));
+            _audioBuffer.addAll(float32Samples);
+          }
         },
         onDone: () {
           debugPrint("Audio stream completed");
@@ -263,39 +273,127 @@ class FletSherpaOnnxService extends FletService {
 
       return true;
     } catch (e) {
-      debugPrint("Error starting recording: $e");
+      debugPrint("Error starting recording${_useVad ? ' with VAD' : ''}: $e");
       return false;
     }
   }
 
-  // 停止录音并执行STT
+  // VAD音频处理逻辑
+  void _processAudioWithVAD(List<int> data) {
+    // 将字节数据转换为float32格式
+    final float32Samples = _convertBytesToFloat32(Uint8List.fromList(data));
+    
+    // 将数据添加到CircularBuffer
+    _circularBuffer!.push(float32Samples);
+    
+    // 处理完整窗口的数据
+    while (_circularBuffer!.size >= _vadWindowSize) {
+      final samples = _circularBuffer!.get(
+        startIndex: _circularBuffer!.head, 
+        n: _vadWindowSize
+      );
+      _circularBuffer!.pop(_vadWindowSize);
+        
+      vad!.acceptWaveform(samples);
+        
+      // 处理所有检测到的语音片段
+      while (!vad!.isEmpty()) {
+        final segment = vad!.front();
+        final segmentSamples = segment.samples;
+        
+        // 为每个语音片段创建独立的流进行处理
+        final segmentStream = recognizer.createStream();
+        segmentStream.acceptWaveform(samples: segmentSamples, sampleRate: _sampleRate);
+        recognizer.decode(segmentStream);
+        final result = recognizer.getResult(segmentStream);
+        segmentStream.free();
+        vad!.pop();
+        
+        // 将识别结果添加到固定长度的vadresult数组
+        if (result.text.isNotEmpty) {
+          _addVadResult(result.text);
+        }
+        // todo trigger an event
+      }
+    }
+  }
+
+  // 停止录音并执行STT - 基于全局变量 _useVad
   Future<String> _stopRecording() async {
     try {
       await _audioRecorder.stop();
       
-      // 确保所有音频数据都已处理
-      if (_audioBuffer.isNotEmpty) {
-        // 使用缓冲区中的所有数据进行最终识别 - 转换为 Float32List
-        final float32Samples = Float32List.fromList(_audioBuffer);
-        _stream.acceptWaveform(samples: float32Samples, sampleRate: _sampleRate);
-        recognizer.decode(_stream);
-        final result = recognizer.getResult(_stream);
-        
-        // 重置流以准备下一次识别
-        _stream.free();
-        _stream = recognizer.createStream();
-        
-        // 清空缓冲区
-        _audioBuffer.clear();
-        
-        return result.text;
+      if (_useVad) {
+        return _stopRecordingWithVAD();
+      } else {
+        return _stopRecordingNormal();
       }
-      
-      return "";
     } catch (e) {
-      debugPrint("Error stopping recording: $e");
+      debugPrint("Error stopping recording${_useVad ? ' with VAD' : ''}: $e");
       return "";
     }
+  }
+
+  // 普通录音停止逻辑
+  String _stopRecordingNormal() {
+    // 确保所有音频数据都已处理
+    if (_audioBuffer.isNotEmpty) {
+      // 使用缓冲区中的所有数据进行最终识别 - 转换为 Float32List
+      final float32Samples = Float32List.fromList(_audioBuffer);
+      _stream.acceptWaveform(samples: float32Samples, sampleRate: _sampleRate);
+      recognizer.decode(_stream);
+      final result = recognizer.getResult(_stream);
+      
+      // 重置流以准备下一次识别
+      _stream.free();
+      _stream = recognizer.createStream();
+      
+      // 清空缓冲区
+      _audioBuffer.clear();
+      
+      return result.text;
+    }
+    
+    return "";
+  }
+
+  // VAD录音停止逻辑
+  String _stopRecordingWithVAD() {
+    String finalResult = "";
+    
+    if (_useVad && vad != null && _circularBuffer != null) {
+      debugPrint("Flushing VAD with remaining buffer size: ${_circularBuffer!.size}");
+      
+      // 刷新VAD以处理剩余数据
+      vad!.flush();
+      
+      // 处理剩余的VAD片段
+      final segment = vad!.front();
+      final samples = segment.samples;          
+      final segmentStream = recognizer.createStream();
+      segmentStream.acceptWaveform(samples: samples, sampleRate: _sampleRate);
+      recognizer.decode(segmentStream);
+      final result = recognizer.getResult(segmentStream);
+      finalResult = result.text;  
+      segmentStream.free();
+      vad!.pop();
+    
+      // 清理CircularBuffer
+      _circularBuffer!.free();
+      _circularBuffer = null;
+    }
+    
+    // 将当前_vadresult的内容追加到finalResult之前
+    if (_vadresult.isNotEmpty) {
+      String vadResultsText = _vadresult.join(' ');
+      if (finalResult.isNotEmpty) {
+        finalResult = '$vadResultsText $finalResult';
+      } else {
+        finalResult = vadResultsText;
+      }
+    }
+    
+    return finalResult;
   }
 
   // 取消录音
@@ -376,147 +474,6 @@ class FletSherpaOnnxService extends FletService {
     // 移动到下一个位置（循环）
     _vadCurrentIndex = (_vadCurrentIndex + 1) % _vadresult.length;
     debugPrint("VAD result added: $text, current index: $_vadCurrentIndex");
-  }
-
-  // 开始带VAD的录音
-  Future<bool> _startRecordingWithVAD() async {
-    try {
-      if (!await _audioRecorder.hasPermission()) {
-        debugPrint("No recording permission");
-        return false;
-      }
-
-      if (!_useVad || vad == null) {
-        debugPrint("VAD not initialized or not enabled");
-        return false;
-      }
-
-      const encoder = AudioEncoder.pcm16bits;
-      
-      if (!await _audioRecorder.isEncoderSupported(encoder)) {
-        debugPrint("Encoder not supported");
-        return false;
-      }
-
-      const config = RecordConfig(
-        encoder: encoder,
-        sampleRate: _sampleRate,
-        numChannels: 1,
-      );
-
-      // 清空音频缓冲区和VAD结果
-      _audioBuffer.clear();
-      _resetVadResult();
-      
-      vad?.reset();
-      
-      // 初始化CircularBuffer - 30秒容量
-      _circularBuffer?.free();
-      _circularBuffer = sherpa_onnx.CircularBuffer(capacity: 30 * _sampleRate);
-
-      debugPrint("Starting VAD recording with circular buffer");
-
-      // 开始录音流
-      final audioStream = await _audioRecorder.startStream(config);
-
-      audioStream.listen(
-        (data) {
-          // 将字节数据转换为float32格式
-          final float32Samples = _convertBytesToFloat32(Uint8List.fromList(data));
-          
-          // 将数据添加到CircularBuffer
-          _circularBuffer!.push(float32Samples);
-          
-          // 处理完整窗口的数据
-          while (_circularBuffer!.size >= _vadWindowSize) {
-            final samples = _circularBuffer!.get(
-              startIndex: _circularBuffer!.head, 
-              n: _vadWindowSize
-            );
-            _circularBuffer!.pop(_vadWindowSize);
-              
-            vad!.acceptWaveform(samples);
-              
-            // 处理所有检测到的语音片段
-            while (!vad!.isEmpty()) {
-              final segment = vad!.front();
-              final segmentSamples = segment.samples;
-              
-              // 为每个语音片段创建独立的流进行处理
-              final segmentStream = recognizer.createStream();
-              segmentStream.acceptWaveform(samples: segmentSamples, sampleRate: _sampleRate);
-              recognizer.decode(segmentStream);
-              final result = recognizer.getResult(segmentStream);
-              segmentStream.free();
-              vad!.pop();
-              
-              // 将识别结果添加到固定长度的vadresult数组
-              if (result.text.isNotEmpty) {
-                _addVadResult(result.text);
-              }
-              // todo trigger an event
-            }
-          }
-        },
-        onDone: () {
-          debugPrint("Audio stream completed");
-        },
-        onError: (error) {
-          debugPrint("Audio stream error: $error");
-        },
-      );
-
-      return true;
-    } catch (e) {
-      debugPrint("Error starting recording with VAD: $e");
-      return false;
-    }
-  }
-
-  // 停止带VAD的录音 - 基于SenseVoice示例的完整版本
-  Future<String> _stopRecordingWithVAD() async {
-    try {
-      await _audioRecorder.stop();
-      
-      String finalResult = "";
-      
-      if (_useVad && vad != null && _circularBuffer != null) {
-        debugPrint("Flushing VAD with remaining buffer size: ${_circularBuffer!.size}");
-        
-        // 刷新VAD以处理剩余数据
-        vad!.flush();
-        
-        // 处理剩余的VAD片段
-        final segment = vad!.front();
-        final samples = segment.samples;          
-        final segmentStream = recognizer.createStream();
-        segmentStream.acceptWaveform(samples: samples, sampleRate: _sampleRate);
-        recognizer.decode(segmentStream);
-        final result = recognizer.getResult(segmentStream);
-        finalResult = result.text;  
-        segmentStream.free();
-        vad!.pop();
-      
-        // 清理CircularBuffer
-        _circularBuffer!.free();
-        _circularBuffer = null;
-      }
-      
-      // 将当前_vadresult的内容追加到finalResult之前
-      if (_vadresult.isNotEmpty) {
-        String vadResultsText = _vadresult.join(' ');
-        if (finalResult.isNotEmpty) {
-          finalResult = '$vadResultsText $finalResult';
-        } else {
-          finalResult = vadResultsText;
-        }
-      }
-      
-      return finalResult;
-    } catch (e) {
-      debugPrint("Error stopping recording with VAD: $e");
-      return "";
-    }
   }
 
   // 获取VAD数据并重置

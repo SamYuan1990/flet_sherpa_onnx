@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # 监测 Flutter (Dart) 依赖
+  - package-ecosystem: "pub"
+    directory: "src/flutter/flet_sherpa_onnx"  # pubspec.yaml 所在目录
+    schedule:
+      interval: "weekly"  # 每周检查
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "flutter"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # 监测 Python 依赖
+  - package-ecosystem: "pip"
+    directory: "/"  # requirements.txt 或 pyproject.toml 所在目录
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "chore(deps)"
