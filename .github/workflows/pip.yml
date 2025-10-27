@@ -14,8 +14,8 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: "3.12"
-    - name: Install pypa/build
+        python-version: "3.12"  # 指定具体版本以确保稳定性
+    - name: Install pypa/build and dependencies
       run: >-
         python3 -m
         pip install
@@ -23,10 +23,12 @@ jobs:
         --user
     - name: Build a binary wheel and a source tarball
       run: python3 -m build
+    - name: Install project dependencies for SBOM generation
+      run: pip install .  # 安装项目依赖以便SBOM工具能分析
     - name: Install SBOM generation tool
       run: pip install cyclonedx-bom
-    - name: Generate SBOM
-      run: cyclonedx-py -o sbom.json -i
+    - name: Generate SBOM from current environment
+      run: cyclonedx-py environment --output sbom.json
     - name: Store the distribution packages and SBOM
       uses: actions/upload-artifact@v4
       with:
