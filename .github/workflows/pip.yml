@@ -28,7 +28,7 @@ jobs:
     - name: Install SBOM generation tool
       run: pip install cyclonedx-bom
     - name: Generate SBOM from current environment
-      run: cyclonedx-py environment --output sbom.json
+      run: cyclonedx-py environment -o sbom.json
     - name: Store the distribution packages and SBOM
       uses: actions/upload-artifact@v4
       with:
