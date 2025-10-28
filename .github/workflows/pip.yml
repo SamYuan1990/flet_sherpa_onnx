@@ -11,10 +11,11 @@ jobs:
     - uses: actions/checkout@v4
       with:
         persist-credentials: false
+        fetch-depth: 0  # 获取完整历史记录，有助于版本检测
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: "3.12"  # 指定具体版本以确保稳定性
+        python-version: "3.11"
     - name: Install pypa/build and dependencies
       run: >-
         python3 -m
@@ -23,12 +24,23 @@ jobs:
         --user
     - name: Build a binary wheel and a source tarball
       run: python3 -m build
-    - name: Install project dependencies for SBOM generation
-      run: pip install .  # 安装项目依赖以便SBOM工具能分析
-    - name: Install SBOM generation tool
-      run: pip install cyclonedx-bom
-    - name: Generate SBOM from current environment
-      run: cyclonedx-py environment -o sbom.json
+    - name: List built distributions
+      run: ls -la dist/
+    - name: Install project dependencies
+      run: pip install .
+    - name: Generate SBOM using Syft
+      run: |
+        pip install syft
+        syft packages python:$(which python) -o cyclonedx-json > sbom.json
+    - name: Verify SBOM was created
+      run: |
+        if [ -f "sbom.json" ]; then
+          echo "SBOM file created successfully"
+          echo "File size: $(wc -l < sbom.json) lines"
+        else
+          echo "ERROR: SBOM file was not created"
+          exit 1
+        fi
     - name: Store the distribution packages and SBOM
       uses: actions/upload-artifact@v4
       with:
@@ -46,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/flet-sherpa-onnx  # Replace <package-name> with your PyPI project name
+      url: https://pypi.org/p/flet-sherpa-onnx
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
 
@@ -56,8 +68,12 @@ jobs:
       with:
         name: python-package-distributions
         path: dist/
+    - name: List downloaded files
+      run: find dist/ -type f -name "*"
     - name: Publish distribution 📦 to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        packages-dir: dist/
 
   create-release:
     name: Create Release with SBOM
