@@ -11,12 +11,11 @@ jobs:
     - uses: actions/checkout@v4
       with:
         persist-credentials: false
-        fetch-depth: 0  # 获取完整历史记录，有助于版本检测
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.12"
-    - name: Install pypa/build and dependencies
+    - name: Install pypa/build
       run: >-
         python3 -m
         pip install
@@ -24,30 +23,11 @@ jobs:
         --user
     - name: Build a binary wheel and a source tarball
       run: python3 -m build
-    - name: List built distributions
-      run: ls -la dist/
-    - name: Install project dependencies
-      run: pip install .
-    - name: Generate SBOM using Syft
-      run: |
-        pip install syft
-        syft packages python:$(which python) -o cyclonedx-json > sbom.json
-    - name: Verify SBOM was created
-      run: |
-        if [ -f "sbom.json" ]; then
-          echo "SBOM file created successfully"
-          echo "File size: $(wc -l < sbom.json) lines"
-        else
-          echo "ERROR: SBOM file was not created"
-          exit 1
-        fi
-    - name: Store the distribution packages and SBOM
+    - name: Store the distribution packages
       uses: actions/upload-artifact@v4
       with:
         name: python-package-distributions
-        path: |
-          dist/
-          sbom.json
+        path: dist/
 
   publish-to-pypi:
     name: >-
@@ -58,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/flet-sherpa-onnx
+      url: https://pypi.org/p/flet-sherpa-onnx  # Replace <package-name> with your PyPI project name
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
 
@@ -68,38 +48,5 @@ jobs:
       with:
         name: python-package-distributions
         path: dist/
-    - name: List downloaded files
-      run: find dist/ -type f -name "*"
     - name: Publish distribution 📦 to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        packages-dir: dist/
-
-  create-release:
-    name: Create Release with SBOM
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: 
-    - build
-    - publish-to-pypi
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write  # Needed to create releases
-      id-token: write
-    
-    steps:
-    - name: Download artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: python-package-distributions
-        path: release-assets/
-        
-    - name: Create Release with SBOM
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          release-assets/sbom.json
-          release-assets/dist/*.whl
-          release-assets/dist/*.tar.gz
-        generate_release_notes: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
