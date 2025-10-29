@@ -10,16 +10,17 @@
 0.0.2 Support for vad + whisper and senseVoice, for real time ASR.
 0.2.1 UX change in python code, clean code in dart. Better version system.
 
-todo in 0.2.x
-- [ ] parakeet-tdt and other models support?(UX change worth maybe a feature to sherpa_onnx?)
-- [ ] flexiable parameter support(UX change worth a release)
-
 todo in 0.3.x
 - [ ] onlinestreaming model(extend scope of model, worth a release)
 
 todo in 0.4.x
 - [ ] event support(need testing with flet, UX change worth a release)
 - [ ] declarative example(waiting for flet, UX change worth a release)
+
+## Design pattern
+
+- To reduce cognitive load, all parameter set to default as possible.
+- Platform support 1st, parakeet-tdt with 0.6 large.... for a little model, just limit language support. Hence, unless new issue been created.
 
 ## Installation
 

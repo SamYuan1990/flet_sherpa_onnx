@@ -186,9 +186,9 @@ class FletSherpaOnnxService extends FletService {
     if (_useVad) {
       final sileroVadConfig = sherpa_onnx.SileroVadModelConfig(
         model: sileroVadModel,
-        minSilenceDuration: 0.25,
-        minSpeechDuration: 0.5,
-        maxSpeechDuration: 5.0,
+        //minSilenceDuration: 0.25, 
+        //minSpeechDuration: 0.5,   
+        //maxSpeechDuration: 5.0,   
       );
       vadConfig = sherpa_onnx.VadModelConfig(
         sileroVad: sileroVadConfig,
