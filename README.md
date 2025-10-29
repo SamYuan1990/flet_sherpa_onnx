@@ -20,15 +20,17 @@ todo in 0.4.x
 ## Design pattern
 
 - To reduce cognitive load, all parameter set to default as possible.
-- Platform support 1st, parakeet-tdt with 0.6 large.... for a little model, just limit language support. Hence, unless new issue been created.
+- Platform support 1st, parakeet-tdt with 0.6 large.... for a little model, just limit language support. Hence, Small Model Multi-lanuage Support, unless new issue been created.
 
 ## Installation
+
+[pypi](https://pypi.org/project/flet-sherpa-onnx/)
 
 Add dependency to `pyproject.toml` of your Flet app:
 
 ```
 dependencies = [
-  "flet-sherpa-onnx==0.0.2",
+  "flet-sherpa-onnx==0.2.1",
   "flet>=0.28.3",
 ]
 ```
