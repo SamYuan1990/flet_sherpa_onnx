@@ -366,18 +366,18 @@ class FletSherpaOnnxService extends FletService {
       
       // 刷新VAD以处理剩余数据
       vad!.flush();
-      
-      // 处理剩余的VAD片段
-      final segment = vad!.front();
-      final samples = segment.samples;          
-      final segmentStream = recognizer.createStream();
-      segmentStream.acceptWaveform(samples: samples, sampleRate: _sampleRate);
-      recognizer.decode(segmentStream);
-      final result = recognizer.getResult(segmentStream);
-      finalResult = result.text;  
-      segmentStream.free();
-      vad!.pop();
-    
+      while(!vad!.isEmpty()) {
+        // 处理剩余的VAD片段
+        final segment = vad!.front();
+        final samples = segment.samples; 
+        final segmentStream = recognizer.createStream(); 
+        segmentStream.acceptWaveform(samples: samples, sampleRate: _sampleRate);
+        recognizer.decode(segmentStream);
+        final result = recognizer.getResult(segmentStream);
+        finalResult += result.text;  
+        segmentStream.free();
+        vad!.pop();
+      }
       // 清理CircularBuffer
       _circularBuffer!.free();
       _circularBuffer = null;

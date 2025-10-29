@@ -7,8 +7,9 @@
 ## An ASR/STT library for flet basing on sherpa-onnx
 
 ### Release log
-0.0.2 Support for vad + whisper and senseVoice, for real time ASR.
+
 0.2.1 UX change in python code, clean code in dart. Better version system.
+0.0.2 Support for vad + whisper and senseVoice, for real time ASR.
 
 todo in 0.3.x
 - [ ] onlinestreaming model(extend scope of model, worth a release)
