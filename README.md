@@ -8,6 +8,7 @@
 
 ### Release log
 
+0.2.2 Bug Fix for vad stopping.
 0.2.1 UX change in python code, clean code in dart. Better version system.
 0.0.2 Support for vad + whisper and senseVoice, for real time ASR.
 
