@@ -19,10 +19,6 @@ dependencies:
   collection: ^1.16.0
   flet: ^0.80.5
 
-dependency_overrides:
-  flet:
-    path: /Users/yuanyi/OpenSource/flet/client/../packages/flet
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
