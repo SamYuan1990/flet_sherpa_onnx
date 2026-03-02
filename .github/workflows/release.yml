@@ -129,7 +129,7 @@ jobs:
           fi
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.artifact-info.outputs.artifact_name }}
           path: ${{ matrix.artifact-path }}
